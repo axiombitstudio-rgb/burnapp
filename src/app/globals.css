@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjYqXtK.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/cormorantgaramond/v16/co3bmX5slCNuHLi8bLeY9MK7whWMhyjorn.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/cormorantgaramond/v16/co3ZmX5slCNuHLi8bLeY9MK7whWMhyjYrEtL.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjYlHpK.woff2")
+    format("woff2");
+}
+
+@theme {
+  --color-bg: #0f0c08;
+  --color-bg2: #1e1814;
+  --color-bg3: #2a221a;
+  --color-text: #d4c4b0;
+  --color-muted: #8a7a68;
+  --color-dim: #5a4a38;
+  --color-deep: #3a3028;
+  --color-accent: #c47a30;
+  --color-warm: #d4956a;
+  --color-ember: #e87828;
+  --color-burn: #d85a30;
+  --color-teal: #1d9e75;
+  --color-purple: #7f77dd;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(196, 122, 48, 0.3);
+  color: #fff;
+}
+
+textarea::placeholder {
+  color: var(--color-deep);
+  font-style: italic;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: rgba(196, 122, 48, 0.4);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes emberFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-70px) scale(0.12);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes countdownRing {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 283;
+  }
+}
+
+@keyframes textFade {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-fadeUp {
+  animation: fadeUp 0.7s ease both;
+}
+.animate-pulse-glow {
+  animation: pulse 2s infinite;
+}
+.animate-breathe {
+  animation: breathe 3s infinite;
+}
+.animate-textFade {
+  animation: textFade 8s ease forwards;
+}
