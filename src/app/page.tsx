@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Nav from "@/components/Nav";
 import Screen from "@/components/Screen";
 import BurnButton from "@/components/BurnButton";
-import BurnAnimation from "@/components/BurnAnimation";
+import BurnParchment from "@/components/BurnParchment";
 import TimerBar from "@/components/TimerBar";
 import CountdownRing from "@/components/CountdownRing";
+import ParchmentIntro from "@/components/ParchmentIntro";
 import {
   PROMPTS,
   SAMPLE_SECRETS,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/constants";
 
 type AppScreen =
+  | "intro"
   | "home"
   | "witness-primer"
   | "prompt"
@@ -27,7 +29,7 @@ type AppScreen =
   | "witness-sent";
 
 export default function Home() {
-  const [screen, setScreen] = useState<AppScreen>("home");
+  const [screen, setScreen] = useState<AppScreen>("intro");
   const [mode, setMode] = useState<"home" | "write" | "witness">("home");
   const [secret, setSecret] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -135,6 +137,9 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen bg-bg overflow-hidden">
+      {screen === "intro" && (
+        <ParchmentIntro onComplete={() => goTo("home")} />
+      )}
       <Nav mode={mode} onModeChange={handleModeChange} witnessCount={witnessCount} />
 
       {/* ═══ HOME ═══ */}
@@ -251,8 +256,11 @@ export default function Home() {
 
       {/* ═══ BURNING ═══ */}
       <Screen active={screen === "burning"}>
-        <p className="text-[11px] text-deep italic mb-3">Letting go</p>
-        <BurnAnimation text={secret} onComplete={handleBurnComplete} />
+        <BurnParchment
+          text={secret}
+          trigger={screen === "burning"}
+          onComplete={handleBurnComplete}
+        />
       </Screen>
 
       {/* ═══ RELEASED ═══ */}
