@@ -19,28 +19,61 @@ function seededRng(seed: number) {
 }
 
 function generateRaggedPath(w: number, h: number, seed = 42): string {
-  const rng = seededRng(seed);
-  const segs = 64;
+  // Each edge gets its own RNG stream so they can't correlate
+  const rngTop    = seededRng(seed);
+  const rngRight  = seededRng(seed + 7919);
+  const rngBottom = seededRng(seed + 3571);
+  const rngLeft   = seededRng(seed + 6247);
+
   const pts: [number, number][] = [];
 
-  // jag per edge [top, right, bottom, left] — right & bottom more torn like real papyrus
-  const jagEdge = [22, 38, 26, 20];
-
-  const wobble = (base: number, jag: number) => {
+  // Vary jag along an edge using a burst envelope:
+  // burstCenters defines positions [0..1] where tearing clusters occur
+  function edgeWobble(
+    rng: () => number,
+    t: number,          // position along edge 0..1
+    baseJag: number,
+    burstCenters: number[],
+    burstWidth: number,
+    burstScale: number,
+  ): number {
+    // Local jag = baseJag amplified near burst centers
+    let localJag = baseJag;
+    for (const c of burstCenters) {
+      const d = Math.abs(t - c);
+      if (d < burstWidth) localJag += baseJag * burstScale * (1 - d / burstWidth);
+    }
     const r = rng();
-    // 30% chance of a deep tear spike (2.5–3.5×), 10% chance of huge missing-chunk (5×)
-    const spike = r < 0.10 ? 5.0 : r < 0.30 ? 3.0 : 1.0;
-    return base + (rng() * 2 - 1) * jag * spike;
-  };
+    const spike = r < 0.08 ? 3.5 : r < 0.22 ? 1.8 : 1.0;
+    return (rng() * 2 - 1) * localJag * spike;
+  }
 
-  for (let i = 0; i <= segs; i++)
-    pts.push([(i / segs) * w, wobble(0, jagEdge[0])]);
-  for (let i = 0; i <= segs; i++)
-    pts.push([wobble(w, jagEdge[1]), (i / segs) * h]);
-  for (let i = 0; i <= segs; i++)
-    pts.push([((segs - i) / segs) * w, wobble(h, jagEdge[2])]);
-  for (let i = 0; i <= segs; i++)
-    pts.push([wobble(0, jagEdge[3]), ((segs - i) / segs) * h]);
+  const segs = 72;
+
+  // Top — calm on the left, burst of tears around 60–70%
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    const dy = edgeWobble(rngTop, t, 10, [0.62, 0.85], 0.14, 2.2);
+    pts.push([(t) * w, dy]);
+  }
+  // Right — scattered small tears, one deeper cluster near 40%
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    const dx = edgeWobble(rngRight, t, 9, [0.38, 0.72], 0.10, 1.8);
+    pts.push([w + dx, t * h]);
+  }
+  // Bottom — two distinct burst zones, otherwise smooth
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    const dy = edgeWobble(rngBottom, t, 11, [0.20, 0.75], 0.13, 2.4);
+    pts.push([((segs - i) / segs) * w, h + dy]);
+  }
+  // Left — mostly calm with one rough patch near 55%
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    const dx = edgeWobble(rngLeft, t, 8, [0.52], 0.16, 2.0);
+    pts.push([dx, ((segs - i) / segs) * h]);
+  }
 
   return "polygon(" + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
 }
@@ -330,12 +363,12 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
           width: "400px",
           maxWidth: "90vw",
           background: `
-            radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.80) 0%, transparent 42%),
-            radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.75) 0%, transparent 40%),
-            radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.65) 0%, transparent 38%),
-            radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.70) 0%, transparent 40%),
-            radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.30) 0%, transparent 65%),
-            linear-gradient(162deg, #7a5418 0%, #5a3a0a 30%, #3e2608 58%, #2a1804 100%)
+            radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.20) 0%, transparent 42%),
+            radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.18) 0%, transparent 40%),
+            radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.15) 0%, transparent 38%),
+            radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.17) 0%, transparent 40%),
+            radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.07) 0%, transparent 65%),
+            linear-gradient(162deg, #ead4b3 0%, #d8bd95 30%, #bba27d 58%, #a18b6b 100%)
           `,
           boxShadow:
             "0 12px 48px rgba(0,0,0,0.88), 0 3px 12px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
@@ -354,39 +387,15 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
               <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
               <feBlend in="SourceGraphic" in2="gray" mode="multiply" />
             </filter>
-            <filter id="spots">
-              <feTurbulence type="turbulence" baseFrequency="0.06 0.09" numOctaves="4" seed="8" result="t" />
-              <feColorMatrix type="matrix" values="0 0 0 0 0.10  0 0 0 0 0.04  0 0 0 0 0.00  0 0 0 9 -4.5" in="t" />
-            </filter>
-            <filter id="damage">
-              <feTurbulence type="turbulence" baseFrequency="0.12" numOctaves="3" seed="22" result="t" />
-              <feColorMatrix type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.02  0 0 0 0 0.00  0 0 0 12 -7" in="t" />
-            </filter>
           </defs>
-          {/* Horizontal reed fiber lines — dense, dark */}
-          {Array.from({ length: 52 }, (_, i) => (
-            <line
-              key={i}
-              x1="0" y1={`${(i / 52) * 100}%`}
-              x2="100%" y2={`${(i / 52) * 100}%`}
-              stroke="#0d0500"
-              strokeWidth={i % 5 === 0 ? "1.2" : "0.5"}
-              strokeOpacity={i % 5 === 0 ? 0.35 : 0.15}
-            />
-          ))}
           {/* Grain overlay */}
           <rect width="100%" height="100%" filter="url(#pg)" opacity="0.38" />
-          {/* Water-damage age spots */}
-          <rect width="100%" height="100%" filter="url(#spots)" opacity="0.55" />
-          {/* Fine dark damage patches */}
-          <rect width="100%" height="100%" filter="url(#damage)" opacity="0.40" />
         </svg>
         <p
           style={{
             fontFamily: "'Cormorant Garamond', Georgia, serif",
             fontSize: "18px",
-            color: "#d4b87a",
-            textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+            color: "#2a1604",
             fontStyle: "italic",
             lineHeight: 1.85,
             textAlign: "center",

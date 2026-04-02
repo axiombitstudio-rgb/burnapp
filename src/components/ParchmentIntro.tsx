@@ -12,19 +12,50 @@ function seededRng(seed: number) {
 }
 
 function generateRaggedPath(w: number, h: number, seed = 99): string {
-  const rng = seededRng(seed);
-  const segs = 64;
+  const rngTop    = seededRng(seed);
+  const rngRight  = seededRng(seed + 7919);
+  const rngBottom = seededRng(seed + 3571);
+  const rngLeft   = seededRng(seed + 6247);
+
   const pts: [number, number][] = [];
-  const jagEdge = [22, 38, 26, 20];
-  const wobble = (base: number, jag: number) => {
+
+  function edgeWobble(
+    rng: () => number,
+    t: number,
+    baseJag: number,
+    burstCenters: number[],
+    burstWidth: number,
+    burstScale: number,
+  ): number {
+    let localJag = baseJag;
+    for (const c of burstCenters) {
+      const d = Math.abs(t - c);
+      if (d < burstWidth) localJag += baseJag * burstScale * (1 - d / burstWidth);
+    }
     const r = rng();
-    const spike = r < 0.10 ? 5.0 : r < 0.30 ? 3.0 : 1.0;
-    return base + (rng() * 2 - 1) * jag * spike;
-  };
-  for (let i = 0; i <= segs; i++) pts.push([(i / segs) * w, wobble(0, jagEdge[0])]);
-  for (let i = 0; i <= segs; i++) pts.push([wobble(w, jagEdge[1]), (i / segs) * h]);
-  for (let i = 0; i <= segs; i++) pts.push([((segs - i) / segs) * w, wobble(h, jagEdge[2])]);
-  for (let i = 0; i <= segs; i++) pts.push([wobble(0, jagEdge[3]), ((segs - i) / segs) * h]);
+    const spike = r < 0.08 ? 3.5 : r < 0.22 ? 1.8 : 1.0;
+    return (rng() * 2 - 1) * localJag * spike;
+  }
+
+  const segs = 72;
+
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    pts.push([t * w, edgeWobble(rngTop, t, 10, [0.30, 0.78], 0.14, 2.0)]);
+  }
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    pts.push([w + edgeWobble(rngRight, t, 9, [0.45, 0.68], 0.10, 1.8), t * h]);
+  }
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    pts.push([((segs - i) / segs) * w, h + edgeWobble(rngBottom, t, 11, [0.15, 0.60], 0.13, 2.4)]);
+  }
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    pts.push([edgeWobble(rngLeft, t, 8, [0.35, 0.80], 0.12, 2.0), ((segs - i) / segs) * h]);
+  }
+
   return "polygon(" + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
 }
 
@@ -160,7 +191,7 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
         style={{
           position: "relative",
           background:
-            "radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.80) 0%, transparent 42%), radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.75) 0%, transparent 40%), radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.65) 0%, transparent 38%), radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.70) 0%, transparent 40%), radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.30) 0%, transparent 65%), linear-gradient(162deg, #7a5418 0%, #5a3a0a 30%, #3e2608 58%, #2a1804 100%)",
+            "radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.20) 0%, transparent 42%), radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.18) 0%, transparent 40%), radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.15) 0%, transparent 38%), radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.17) 0%, transparent 40%), radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.07) 0%, transparent 65%), linear-gradient(162deg, #ead4b3 0%, #d8bd95 30%, #bba27d 58%, #a18b6b 100%)",
           boxShadow:
             "0 16px 64px rgba(0,0,0,0.88), 0 4px 20px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
           clipPath,
@@ -193,28 +224,8 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
               <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
               <feBlend in="SourceGraphic" in2="gray" mode="multiply" />
             </filter>
-            <filter id="pi-spots">
-              <feTurbulence type="turbulence" baseFrequency="0.06 0.09" numOctaves="4" seed="12" result="t" />
-              <feColorMatrix type="matrix" values="0 0 0 0 0.10  0 0 0 0 0.04  0 0 0 0 0.00  0 0 0 9 -4.5" in="t" />
-            </filter>
-            <filter id="pi-damage">
-              <feTurbulence type="turbulence" baseFrequency="0.12" numOctaves="3" seed="31" result="t" />
-              <feColorMatrix type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.02  0 0 0 0 0.00  0 0 0 12 -7" in="t" />
-            </filter>
           </defs>
-          {Array.from({ length: 52 }, (_, i) => (
-            <line
-              key={i}
-              x1="0" y1={`${(i / 52) * 100}%`}
-              x2="100%" y2={`${(i / 52) * 100}%`}
-              stroke="#0d0500"
-              strokeWidth={i % 5 === 0 ? "1.2" : "0.5"}
-              strokeOpacity={i % 5 === 0 ? 0.35 : 0.15}
-            />
-          ))}
           <rect width="100%" height="100%" filter="url(#pi-grain)" opacity="0.38" />
-          <rect width="100%" height="100%" filter="url(#pi-spots)" opacity="0.55" />
-          <rect width="100%" height="100%" filter="url(#pi-damage)" opacity="0.40" />
         </svg>
 
         {LINES.map((line, i) => {
@@ -222,7 +233,7 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
           const isLast = i === LINES.length - 1;
 
           let opacity = 1;
-          let color = "#c8a86a";
+          let color = "#2a1604";
           let textShadow = "none";
           let transform = "translateY(0)";
           let transition = "none";
