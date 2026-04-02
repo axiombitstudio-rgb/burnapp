@@ -18,15 +18,30 @@ function seededRng(seed: number) {
   };
 }
 
-function generateRaggedPath(w: number, h: number): string {
-  const rng = seededRng(42);
-  const jag = 4;
-  const segs = 28;
+function generateRaggedPath(w: number, h: number, seed = 42): string {
+  const rng = seededRng(seed);
+  const segs = 64;
   const pts: [number, number][] = [];
-  for (let i = 0; i <= segs; i++) pts.push([(i / segs) * w, (rng() * 2 - 1) * jag]);
-  for (let i = 0; i <= segs; i++) pts.push([w + (rng() * 2 - 1) * jag, (i / segs) * h]);
-  for (let i = 0; i <= segs; i++) pts.push([((segs - i) / segs) * w, h + (rng() * 2 - 1) * jag]);
-  for (let i = 0; i <= segs; i++) pts.push([(rng() * 2 - 1) * jag, ((segs - i) / segs) * h]);
+
+  // jag per edge [top, right, bottom, left] — right & bottom more torn like real papyrus
+  const jagEdge = [22, 38, 26, 20];
+
+  const wobble = (base: number, jag: number) => {
+    const r = rng();
+    // 30% chance of a deep tear spike (2.5–3.5×), 10% chance of huge missing-chunk (5×)
+    const spike = r < 0.10 ? 5.0 : r < 0.30 ? 3.0 : 1.0;
+    return base + (rng() * 2 - 1) * jag * spike;
+  };
+
+  for (let i = 0; i <= segs; i++)
+    pts.push([(i / segs) * w, wobble(0, jagEdge[0])]);
+  for (let i = 0; i <= segs; i++)
+    pts.push([wobble(w, jagEdge[1]), (i / segs) * h]);
+  for (let i = 0; i <= segs; i++)
+    pts.push([((segs - i) / segs) * w, wobble(h, jagEdge[2])]);
+  for (let i = 0; i <= segs; i++)
+    pts.push([wobble(0, jagEdge[3]), ((segs - i) / segs) * h]);
+
   return "polygon(" + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
 }
 
@@ -315,14 +330,15 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
           width: "400px",
           maxWidth: "90vw",
           background: `
-            radial-gradient(ellipse at 18% 24%, rgba(120,80,10,0.38) 0%, transparent 52%),
-            radial-gradient(ellipse at 82% 76%, rgba(100,60,5,0.32) 0%, transparent 48%),
-            radial-gradient(ellipse at 60% 10%, rgba(180,140,60,0.22) 0%, transparent 45%),
-            radial-gradient(ellipse at 38% 88%, rgba(90,55,8,0.28) 0%, transparent 42%),
-            linear-gradient(168deg, #c8a84a 0%, #b89030 38%, #a07820 65%, #8f6818 100%)
+            radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.80) 0%, transparent 42%),
+            radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.75) 0%, transparent 40%),
+            radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.65) 0%, transparent 38%),
+            radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.70) 0%, transparent 40%),
+            radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.30) 0%, transparent 65%),
+            linear-gradient(162deg, #7a5418 0%, #5a3a0a 30%, #3e2608 58%, #2a1804 100%)
           `,
           boxShadow:
-            "0 12px 48px rgba(0,0,0,0.82), 0 3px 12px rgba(0,0,0,0.55), inset 0 0 50px rgba(60,30,0,0.45)",
+            "0 12px 48px rgba(0,0,0,0.88), 0 3px 12px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
           padding: "38px 34px",
           willChange: "transform",
         }}
@@ -334,36 +350,43 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
         >
           <defs>
             <filter id="pg">
-              <feTurbulence type="fractalNoise" baseFrequency="0.04 0.85" numOctaves="5" stitchTiles="stitch" result="noise" />
+              <feTurbulence type="fractalNoise" baseFrequency="0.03 0.92" numOctaves="6" stitchTiles="stitch" result="noise" />
               <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
               <feBlend in="SourceGraphic" in2="gray" mode="multiply" />
             </filter>
             <filter id="spots">
-              <feTurbulence type="turbulence" baseFrequency="0.08" numOctaves="3" seed="8" result="t" />
-              <feColorMatrix type="matrix" values="0 0 0 0 0.28  0 0 0 0 0.18  0 0 0 0 0.02  0 0 0 6 -3" in="t" />
+              <feTurbulence type="turbulence" baseFrequency="0.06 0.09" numOctaves="4" seed="8" result="t" />
+              <feColorMatrix type="matrix" values="0 0 0 0 0.10  0 0 0 0 0.04  0 0 0 0 0.00  0 0 0 9 -4.5" in="t" />
+            </filter>
+            <filter id="damage">
+              <feTurbulence type="turbulence" baseFrequency="0.12" numOctaves="3" seed="22" result="t" />
+              <feColorMatrix type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.02  0 0 0 0 0.00  0 0 0 12 -7" in="t" />
             </filter>
           </defs>
-          {/* Horizontal reed fiber lines */}
-          {Array.from({ length: 32 }, (_, i) => (
+          {/* Horizontal reed fiber lines — dense, dark */}
+          {Array.from({ length: 52 }, (_, i) => (
             <line
               key={i}
-              x1="0" y1={`${(i / 32) * 100}%`}
-              x2="100%" y2={`${(i / 32) * 100}%`}
-              stroke="#6b4510"
-              strokeWidth={i % 4 === 0 ? "0.9" : "0.4"}
-              strokeOpacity={i % 4 === 0 ? 0.18 : 0.09}
+              x1="0" y1={`${(i / 52) * 100}%`}
+              x2="100%" y2={`${(i / 52) * 100}%`}
+              stroke="#0d0500"
+              strokeWidth={i % 5 === 0 ? "1.2" : "0.5"}
+              strokeOpacity={i % 5 === 0 ? 0.35 : 0.15}
             />
           ))}
           {/* Grain overlay */}
-          <rect width="100%" height="100%" filter="url(#pg)" opacity="0.28" />
-          {/* Age spots */}
-          <rect width="100%" height="100%" filter="url(#spots)" opacity="0.22" />
+          <rect width="100%" height="100%" filter="url(#pg)" opacity="0.38" />
+          {/* Water-damage age spots */}
+          <rect width="100%" height="100%" filter="url(#spots)" opacity="0.55" />
+          {/* Fine dark damage patches */}
+          <rect width="100%" height="100%" filter="url(#damage)" opacity="0.40" />
         </svg>
         <p
           style={{
             fontFamily: "'Cormorant Garamond', Georgia, serif",
             fontSize: "18px",
-            color: "#3a2a1a",
+            color: "#d4b87a",
+            textShadow: "0 1px 3px rgba(0,0,0,0.8)",
             fontStyle: "italic",
             lineHeight: 1.85,
             textAlign: "center",

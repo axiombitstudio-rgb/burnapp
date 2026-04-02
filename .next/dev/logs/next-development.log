@@ -2,3 +2,27 @@
 {"timestamp":"00:04:39.177","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
 {"timestamp":"00:05:32.977","source":"Server","level":"LOG","message":"✓ Compiled in 676ms"}
 {"timestamp":"00:05:42.601","source":"Server","level":"LOG","message":"✓ Compiled in 47ms"}
+{"timestamp":"00:05:47.435","source":"Server","level":"LOG","message":"✓ Compiled in 28ms"}
+{"timestamp":"00:05:53.797","source":"Server","level":"LOG","message":"✓ Compiled in 30ms"}
+{"timestamp":"00:05:57.943","source":"Server","level":"LOG","message":"✓ Compiled in 32ms"}
+{"timestamp":"00:06:09.439","source":"Server","level":"LOG","message":"✓ Compiled in 105ms"}
+{"timestamp":"00:06:13.440","source":"Server","level":"LOG","message":"✓ Compiled in 29ms"}
+{"timestamp":"00:08:03.174","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:08:03.278","source":"Browser","level":"LOG","message":"Browsing Topics API removed from http://localhost:3000/ which is main frame"}
+{"timestamp":"00:09:03.454","source":"Server","level":"LOG","message":"✓ Compiled in 62ms"}
+{"timestamp":"00:09:14.771","source":"Server","level":"LOG","message":"✓ Compiled in 28ms"}
+{"timestamp":"00:09:18.858","source":"Server","level":"LOG","message":"✓ Compiled in 23ms"}
+{"timestamp":"00:09:26.733","source":"Server","level":"LOG","message":"✓ Compiled in 23ms"}
+{"timestamp":"00:09:33.722","source":"Server","level":"LOG","message":"✓ Compiled in 26ms"}
+{"timestamp":"00:09:39.401","source":"Server","level":"LOG","message":"✓ Compiled in 24ms"}
+{"timestamp":"00:09:48.025","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:10:32.065","source":"Server","level":"LOG","message":"✓ Compiled in 33ms"}
+{"timestamp":"00:10:43.377","source":"Server","level":"LOG","message":"✓ Compiled in 43ms"}
+{"timestamp":"00:11:16.599","source":"Server","level":"LOG","message":"✓ Compiled in 27ms"}
+{"timestamp":"00:11:22.903","source":"Server","level":"LOG","message":"✓ Compiled in 30ms"}
+{"timestamp":"00:11:34.526","source":"Server","level":"LOG","message":"✓ Compiled in 28ms"}
+{"timestamp":"00:11:45.348","source":"Server","level":"LOG","message":"✓ Compiled in 29ms"}
+{"timestamp":"00:11:58.963","source":"Server","level":"LOG","message":"✓ Compiled in 23ms"}
+{"timestamp":"00:12:03.573","source":"Server","level":"LOG","message":"✓ Compiled in 43ms"}
+{"timestamp":"00:12:07.491","source":"Server","level":"LOG","message":"✓ Compiled in 27ms"}
+{"timestamp":"00:12:23.485","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}

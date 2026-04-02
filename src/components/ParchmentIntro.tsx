@@ -2,6 +2,32 @@
 
 import { useEffect, useRef, useState } from "react";
 
+// ── Seeded RNG + ragged clip-path (shared logic with BurnParchment) ──────────
+function seededRng(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+function generateRaggedPath(w: number, h: number, seed = 99): string {
+  const rng = seededRng(seed);
+  const segs = 64;
+  const pts: [number, number][] = [];
+  const jagEdge = [22, 38, 26, 20];
+  const wobble = (base: number, jag: number) => {
+    const r = rng();
+    const spike = r < 0.10 ? 5.0 : r < 0.30 ? 3.0 : 1.0;
+    return base + (rng() * 2 - 1) * jag * spike;
+  };
+  for (let i = 0; i <= segs; i++) pts.push([(i / segs) * w, wobble(0, jagEdge[0])]);
+  for (let i = 0; i <= segs; i++) pts.push([wobble(w, jagEdge[1]), (i / segs) * h]);
+  for (let i = 0; i <= segs; i++) pts.push([((segs - i) / segs) * w, wobble(h, jagEdge[2])]);
+  for (let i = 0; i <= segs; i++) pts.push([wobble(0, jagEdge[3]), ((segs - i) / segs) * h]);
+  return "polygon(" + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
+}
+
 const LINES = [
   "I told her it didn't matter anymore.",
   "That I had made peace with it.",
@@ -21,6 +47,7 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
   const [started, setStarted] = useState(false);
   const [fading, setFading] = useState(false);
   const [lineStates, setLineStates] = useState<LineState[]>(LINES.map(() => "visible"));
+  const [clipPath, setClipPath] = useState("");
   const parchmentRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const emberContainerRef = useRef<HTMLDivElement>(null);
@@ -58,6 +85,12 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
     setFading(true);
     setTimeout(onComplete, 800);
   };
+
+  useEffect(() => {
+    const el = parchmentRef.current;
+    if (!el) return;
+    setClipPath(generateRaggedPath(el.offsetWidth, el.offsetHeight));
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setStarted(true), 1600);
@@ -127,10 +160,10 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
         style={{
           position: "relative",
           background:
-            "linear-gradient(160deg, #ede0c4 0%, #e0cd9c 50%, #d4bc88 100%)",
+            "radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.80) 0%, transparent 42%), radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.75) 0%, transparent 40%), radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.65) 0%, transparent 38%), radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.70) 0%, transparent 40%), radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.30) 0%, transparent 65%), linear-gradient(162deg, #7a5418 0%, #5a3a0a 30%, #3e2608 58%, #2a1804 100%)",
           boxShadow:
-            "0 16px 64px rgba(0,0,0,0.75), 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,245,220,0.5)",
-          borderRadius: "1px",
+            "0 16px 64px rgba(0,0,0,0.88), 0 4px 20px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
+          clipPath,
           padding: "52px 56px",
           maxWidth: "440px",
           width: "90%",
@@ -149,12 +182,47 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
           }}
         />
 
+        {/* Papyrus fiber texture */}
+        <svg
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+          aria-hidden="true"
+        >
+          <defs>
+            <filter id="pi-grain">
+              <feTurbulence type="fractalNoise" baseFrequency="0.03 0.92" numOctaves="6" stitchTiles="stitch" result="noise" />
+              <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
+              <feBlend in="SourceGraphic" in2="gray" mode="multiply" />
+            </filter>
+            <filter id="pi-spots">
+              <feTurbulence type="turbulence" baseFrequency="0.06 0.09" numOctaves="4" seed="12" result="t" />
+              <feColorMatrix type="matrix" values="0 0 0 0 0.10  0 0 0 0 0.04  0 0 0 0 0.00  0 0 0 9 -4.5" in="t" />
+            </filter>
+            <filter id="pi-damage">
+              <feTurbulence type="turbulence" baseFrequency="0.12" numOctaves="3" seed="31" result="t" />
+              <feColorMatrix type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.02  0 0 0 0 0.00  0 0 0 12 -7" in="t" />
+            </filter>
+          </defs>
+          {Array.from({ length: 52 }, (_, i) => (
+            <line
+              key={i}
+              x1="0" y1={`${(i / 52) * 100}%`}
+              x2="100%" y2={`${(i / 52) * 100}%`}
+              stroke="#0d0500"
+              strokeWidth={i % 5 === 0 ? "1.2" : "0.5"}
+              strokeOpacity={i % 5 === 0 ? 0.35 : 0.15}
+            />
+          ))}
+          <rect width="100%" height="100%" filter="url(#pi-grain)" opacity="0.38" />
+          <rect width="100%" height="100%" filter="url(#pi-spots)" opacity="0.55" />
+          <rect width="100%" height="100%" filter="url(#pi-damage)" opacity="0.40" />
+        </svg>
+
         {LINES.map((line, i) => {
           const state = lineStates[i];
           const isLast = i === LINES.length - 1;
 
           let opacity = 1;
-          let color = "#1a0e05";
+          let color = "#c8a86a";
           let textShadow = "none";
           let transform = "translateY(0)";
           let transition = "none";
@@ -202,7 +270,7 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
             bottom: "14px",
             right: "20px",
             fontSize: "10px",
-            color: "#8a7060",
+            color: "#9a7840",
             fontFamily: "Georgia, serif",
             fontStyle: "italic",
             opacity: 0.5,

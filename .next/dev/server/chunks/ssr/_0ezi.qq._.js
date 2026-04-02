@@ -594,7 +594,7 @@ function BurnParchment({ text, trigger, onComplete }) {
                         style: {
                             fontFamily: "'Cormorant Garamond', Georgia, serif",
                             fontSize: "18px",
-                            color: "#3a2a1a",
+                            color: "#1c0e02",
                             fontStyle: "italic",
                             lineHeight: 1.85,
                             textAlign: "center",
@@ -924,8 +924,8 @@ function ParchmentIntro({ onComplete }) {
             ref: parchmentRef,
             style: {
                 position: "relative",
-                background: "linear-gradient(160deg, #ede0c4 0%, #e0cd9c 50%, #d4bc88 100%)",
-                boxShadow: "0 16px 64px rgba(0,0,0,0.75), 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,245,220,0.5)",
+                background: "radial-gradient(ellipse at 18% 22%, rgba(120,80,10,0.35) 0%, transparent 50%), radial-gradient(ellipse at 80% 78%, rgba(90,55,5,0.30) 0%, transparent 46%), linear-gradient(168deg, #c8a84a 0%, #b89030 40%, #a07820 68%, #8f6818 100%)",
+                boxShadow: "0 16px 64px rgba(0,0,0,0.82), 0 4px 20px rgba(0,0,0,0.55), inset 0 0 50px rgba(60,30,0,0.45)",
                 borderRadius: "1px",
                 padding: "52px 56px",
                 maxWidth: "440px",
@@ -951,7 +951,7 @@ function ParchmentIntro({ onComplete }) {
                     const state = lineStates[i];
                     const isLast = i === LINES.length - 1;
                     let opacity = 1;
-                    let color = "#1a0e05";
+                    let color = "#100800";
                     let textShadow = "none";
                     let transform = "translateY(0)";
                     let transition = "none";
