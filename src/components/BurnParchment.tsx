@@ -9,7 +9,7 @@ interface BurnParchmentProps {
   onComplete: () => void;
 }
 
-// Seeded pseudo-random for stable ragged edges
+// ── Seeded RNG for stable ragged edges ──────────────────────────────────────
 function seededRng(seed: number) {
   let s = seed;
   return () => {
@@ -23,191 +23,227 @@ function generateRaggedPath(w: number, h: number): string {
   const jag = 4;
   const segs = 28;
   const pts: [number, number][] = [];
-
-  // Top edge: left → right
-  for (let i = 0; i <= segs; i++) {
-    const x = (i / segs) * w;
-    const y = (rng() * 2 - 1) * jag;
-    pts.push([x, y]);
-  }
-  // Right edge: top → bottom
-  for (let i = 0; i <= segs; i++) {
-    const x = w + (rng() * 2 - 1) * jag;
-    const y = (i / segs) * h;
-    pts.push([x, y]);
-  }
-  // Bottom edge: right → left
-  for (let i = 0; i <= segs; i++) {
-    const x = ((segs - i) / segs) * w;
-    const y = h + (rng() * 2 - 1) * jag;
-    pts.push([x, y]);
-  }
-  // Left edge: bottom → top
-  for (let i = 0; i <= segs; i++) {
-    const x = (rng() * 2 - 1) * jag;
-    const y = ((segs - i) / segs) * h;
-    pts.push([x, y]);
-  }
-
+  for (let i = 0; i <= segs; i++) pts.push([(i / segs) * w, (rng() * 2 - 1) * jag]);
+  for (let i = 0; i <= segs; i++) pts.push([w + (rng() * 2 - 1) * jag, (i / segs) * h]);
+  for (let i = 0; i <= segs; i++) pts.push([((segs - i) / segs) * w, h + (rng() * 2 - 1) * jag]);
+  for (let i = 0; i <= segs; i++) pts.push([(rng() * 2 - 1) * jag, ((segs - i) / segs) * h]);
   return "polygon(" + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
 }
 
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  opacity: number;
-  size: number;
-  color: string;
+// ── Fire colour palette (Doom-style: transparent → dark red → orange → yellow → white) ──
+function buildFirePalette(): Uint8ClampedArray {
+  const p = new Uint8ClampedArray(256 * 4);
+  for (let i = 0; i < 256; i++) {
+    let r = 0, g = 0, b = 0, a = 0;
+    if (i < 20) {
+      // near-transparent deep red embers
+      r = i * 6; g = 0; b = 0; a = i * 8;
+    } else if (i < 60) {
+      r = 120 + (i - 20) * 3; g = 0; b = 0; a = 80 + (i - 20) * 4;
+    } else if (i < 100) {
+      r = 240; g = (i - 60) * 4; b = 0; a = 200 + (i - 60) * 1;
+    } else if (i < 160) {
+      r = 255; g = 160 + (i - 100); b = 0; a = 240;
+    } else if (i < 210) {
+      r = 255; g = 220 + Math.floor((i - 160) * 0.6); b = (i - 160) * 3; a = 255;
+    } else {
+      r = 255; g = 250; b = 180 + (i - 210) * 3; a = 255;
+    }
+    p[i * 4] = Math.min(255, r);
+    p[i * 4 + 1] = Math.min(255, g);
+    p[i * 4 + 2] = Math.min(255, b);
+    p[i * 4 + 3] = Math.min(255, a);
+  }
+  return p;
 }
 
-const ASH_COLORS = ["#555555", "#444444", "#777777", "#8a7a68", "#ff6a00", "#cc4400"];
+const FIRE_PALETTE = buildFirePalette();
+const FIRE_H = 90; // flame height above burn line in pixels
+const BG = "#0f0c08";
+
+interface Particle {
+  x: number; y: number; vx: number; vy: number;
+  opacity: number; size: number; color: string;
+}
+
+const ASH_COLORS = ["#3a3a3a", "#555", "#777", "#8a7a68", "#ff5500", "#cc3300"];
 
 export default function BurnParchment({ text, trigger, onComplete }: BurnParchmentProps) {
   const parchmentRef = useRef<HTMLDivElement>(null);
-  const burnCanvasRef = useRef<HTMLCanvasElement>(null);
+  // coverCanvas: sits on top of parchment, covers burned area with BG color
+  const coverCanvasRef = useRef<HTMLCanvasElement>(null);
+  // fireCanvas: sits above everything, renders Doom fire
+  const fireCanvasRef = useRef<HTMLCanvasElement>(null);
+  // particleCanvas: ash
   const particleCanvasRef = useRef<HTMLCanvasElement>(null);
+
   const rafRef = useRef<number>(0);
-  const startTimeRef = useRef<number>(0);
   const burnLineRef = useRef<Float32Array | null>(null);
+  const fireGridRef = useRef<Uint8Array | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const noise2D = useRef(createNoise2D());
-  const [clipPath, setClipPath] = useState("");
-  const [parchmentOpacity, setParchmentOpacity] = useState(1);
-  const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
+  const startTimeRef = useRef<number>(0);
   const burnDoneRef = useRef(false);
+  const [clipPath, setClipPath] = useState("");
 
-  // Measure parchment and generate ragged edges
   useEffect(() => {
     const el = parchmentRef.current;
     if (!el) return;
-    const { offsetWidth: w, offsetHeight: h } = el;
-    setClipPath(generateRaggedPath(w, h));
-    setDimensions({ w, h });
+    setClipPath(generateRaggedPath(el.offsetWidth, el.offsetHeight));
   }, [text]);
 
   const animate = useCallback(() => {
-    const burnCanvas = burnCanvasRef.current;
+    const coverCanvas = coverCanvasRef.current;
+    const fireCanvas = fireCanvasRef.current;
     const particleCanvas = particleCanvasRef.current;
-    if (!burnCanvas || !particleCanvas || !burnLineRef.current) return;
+    if (!coverCanvas || !fireCanvas || !particleCanvas) return;
+    if (!burnLineRef.current || !fireGridRef.current) return;
 
-    const ctx = burnCanvas.getContext("2d");
+    const cCtx = coverCanvas.getContext("2d");
+    const fCtx = fireCanvas.getContext("2d");
     const pCtx = particleCanvas.getContext("2d");
-    if (!ctx || !pCtx) return;
+    if (!cCtx || !fCtx || !pCtx) return;
 
-    const { width: W, height: H } = burnCanvas;
+    const W = coverCanvas.width;
+    const H = coverCanvas.height;
     const burnLine = burnLineRef.current;
-    const now = performance.now();
-    const elapsed = (now - startTimeRef.current) / 1000; // seconds
+    const fireGrid = fireGridRef.current;
+    const elapsed = (performance.now() - startTimeRef.current) / 1000;
     const noise = noise2D.current;
 
-    // ── Update burn line ──
-    const baseSpeed = 1.1;
-    const done = burnLine.every((y) => y <= 0);
+    // ── 1. Advance burn line (bottom → top) ─────────────────────────────────
+    const allDone = burnLine.every((y) => y <= 0);
 
-    if (!done) {
+    if (!allDone) {
       for (let x = 0; x < W; x++) {
-        const centerFactor = 1 + 0.35 * Math.cos((x / W) * Math.PI);
-        const n = noise(x * 0.025, elapsed * 0.55) * 2.2;
-        let speed = (baseSpeed + n) * centerFactor;
+        const centerBoost = 1 + 0.4 * Math.cos((x / W) * Math.PI);
+        const n = noise(x * 0.022, elapsed * 0.5) * 2.5;
+        let speed = (1.2 + n) * centerBoost;
 
-        // Tongue surges: 4 tongues
+        // 4 flame tongues surge ahead
         for (let t = 0; t < 4; t++) {
-          const tongueCenter = (W / 5) * (t + 1);
-          const dist = Math.abs(x - tongueCenter);
-          if (dist < 30) {
-            speed += (1 - dist / 30) * 2.5 * Math.max(0, Math.sin(elapsed * 0.8 + t));
-          }
+          const tc = (W / 5) * (t + 1);
+          const d = Math.abs(x - tc);
+          if (d < 35) speed += (1 - d / 35) * 3 * Math.max(0, Math.sin(elapsed * 1.1 + t * 1.3));
         }
 
-        burnLine[x] -= Math.max(0.2, speed);
+        burnLine[x] = Math.max(0, burnLine[x] - Math.max(0.3, speed));
       }
-
-      // Neighbor smoothing
+      // Neighbor smoothing for organic edge
+      const tmp = burnLine.slice();
       for (let x = 1; x < W - 1; x++) {
-        burnLine[x] = burnLine[x] * 0.72 + (burnLine[x - 1] + burnLine[x + 1]) * 0.14;
-      }
-      for (let x = 0; x < W; x++) {
-        burnLine[x] = Math.max(0, burnLine[x]);
+        burnLine[x] = tmp[x] * 0.68 + (tmp[x - 1] + tmp[x + 1]) * 0.16;
       }
     }
 
-    // ── Draw burn effect ──
-    ctx.clearRect(0, 0, W, H);
-
-    // Erased area (burned away) — use destination-out approach via black fill on separate pass
-    // We draw the burn effect onto the canvas which is overlaid with mix-blend-mode: multiply
-    // Actually: draw black (transparent) below burn line, char/ember at the edge
-
+    // ── 2. Fire simulation (Doom heat diffusion) ─────────────────────────────
+    // Seed bottom row of fire grid from burn line activity
     for (let x = 0; x < W; x++) {
-      const burnY = burnLine[x];
+      const by = burnLine[x];
+      const active = by > 1 && by < H;
+      fireGrid[(FIRE_H - 1) * W + x] = active ? 200 + Math.floor(Math.random() * 55) : 0;
+    }
 
-      // Burned-away: draw blackness (will show through parchment via multiply blend)
-      if (burnY < H) {
-        ctx.fillStyle = "rgba(0,0,0,1)";
-        ctx.fillRect(x, burnY, 1, H - burnY);
+    // Propagate heat upward (classic Doom fire)
+    for (let y = 0; y < FIRE_H - 2; y++) {
+      for (let x = 0; x < W; x++) {
+        const src = fireGrid[(y + 1) * W + x];
+        const decay = Math.floor(Math.random() * 4);
+        const heat = Math.max(0, src - decay);
+        // Slight lateral drift for organic shape
+        const dx = Math.floor(Math.random() * 3) - 1;
+        const nx = Math.max(0, Math.min(W - 1, x + dx));
+        fireGrid[y * W + nx] = heat;
       }
-
-      // Char band (above burn line)
-      const charH = 14;
-      const grad = ctx.createLinearGradient(x, burnY - charH, x, burnY);
-      grad.addColorStop(0, "rgba(26, 10, 0, 0.0)");
-      grad.addColorStop(0.3, "rgba(18, 6, 0, 0.85)");
-      grad.addColorStop(0.65, "rgba(180, 60, 0, 0.75)");
-      grad.addColorStop(1.0, "rgba(255, 90, 0, 0.0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, burnY - charH, 1, charH);
     }
 
-    // Ember glow pass
-    ctx.globalCompositeOperation = "lighter";
-    for (let x = 0; x < W; x += 2) {
-      if (Math.random() > 0.55) continue;
-      const burnY = burnLine[x];
-      const r = 2 + Math.random() * 4;
-      const alpha = 0.15 + Math.random() * 0.45;
-      const grd = ctx.createRadialGradient(x, burnY, 0, x, burnY, r);
-      grd.addColorStop(0, `rgba(255, 90, 0, ${alpha})`);
-      grd.addColorStop(1, "rgba(200, 40, 0, 0)");
-      ctx.beginPath();
-      ctx.arc(x, burnY, r, 0, Math.PI * 2);
-      ctx.fillStyle = grd;
-      ctx.fill();
+    // ── 3. Render fire imageData ─────────────────────────────────────────────
+    const fireImageData = fCtx.createImageData(W, FIRE_H);
+    for (let i = 0; i < W * FIRE_H; i++) {
+      const heat = fireGrid[i];
+      const pi = heat * 4;
+      fireImageData.data[i * 4] = FIRE_PALETTE[pi];
+      fireImageData.data[i * 4 + 1] = FIRE_PALETTE[pi + 1];
+      fireImageData.data[i * 4 + 2] = FIRE_PALETTE[pi + 2];
+      fireImageData.data[i * 4 + 3] = FIRE_PALETTE[pi + 3];
     }
-    ctx.globalCompositeOperation = "source-over";
 
-    // ── Particles ──
-    // Spawn new particles along the burn edge
-    if (!done) {
-      for (let i = 0; i < 3; i++) {
+    // Find average burn Y for fire placement
+    let sumY = 0;
+    for (let x = 0; x < W; x++) sumY += burnLine[x];
+    const avgBurnY = sumY / W;
+
+    fCtx.clearRect(0, 0, W, H + FIRE_H);
+    // Position fire so its base aligns with the burn edge
+    fCtx.putImageData(fireImageData, 0, avgBurnY - FIRE_H + 12);
+
+    // Soft glow beneath fire (radial bloom)
+    fCtx.globalCompositeOperation = "lighter";
+    const glowH = 18;
+    for (let x = 0; x < W; x += 4) {
+      const by = burnLine[x];
+      if (by <= 0 || by >= H) continue;
+      const alpha = 0.04 + Math.random() * 0.06;
+      const grd = fCtx.createRadialGradient(x, by, 0, x, by, glowH);
+      grd.addColorStop(0, `rgba(255,120,0,${alpha})`);
+      grd.addColorStop(1, "rgba(200,50,0,0)");
+      fCtx.fillStyle = grd;
+      fCtx.fillRect(x - glowH, by - glowH, glowH * 2, glowH * 2);
+    }
+    fCtx.globalCompositeOperation = "source-over";
+
+    // ── 4. Cover canvas: erase burned paper ─────────────────────────────────
+    cCtx.clearRect(0, 0, W, H);
+
+    // Draw background color over the burned (bottom) portion
+    for (let x = 0; x < W; x++) {
+      const by = burnLine[x];
+      if (by < H) {
+        cCtx.fillStyle = BG;
+        cCtx.fillRect(x, by, 1, H - by);
+      }
+    }
+
+    // Charred paper zone just above burn line
+    for (let x = 0; x < W; x++) {
+      const by = burnLine[x];
+      if (by <= 0) continue;
+      const charH = 18;
+      const grad = cCtx.createLinearGradient(x, by - charH, x, by);
+      grad.addColorStop(0, "rgba(12, 5, 0, 0.0)");
+      grad.addColorStop(0.35, "rgba(10, 3, 0, 0.82)");
+      grad.addColorStop(0.7, "rgba(8, 2, 0, 0.55)");
+      grad.addColorStop(1.0, "rgba(5, 0, 0, 0.0)");
+      cCtx.fillStyle = grad;
+      cCtx.fillRect(x, by - charH, 1, charH);
+    }
+
+    // ── 5. Ash particles ─────────────────────────────────────────────────────
+    if (!allDone) {
+      for (let i = 0; i < 4; i++) {
         const x = Math.random() * W;
-        const idx = Math.floor(x);
-        const burnY = burnLine[Math.min(idx, W - 1)];
+        const by = burnLine[Math.min(Math.floor(x), W - 1)];
+        if (by <= 0 || by >= H) continue;
         particlesRef.current.push({
-          x,
-          y: burnY,
-          vx: (Math.random() - 0.5) * 0.8,
-          vy: -(0.6 + Math.random() * 1.4),
-          opacity: 0.6 + Math.random() * 0.3,
-          size: 1 + Math.random() * 2,
+          x, y: by,
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: -(0.8 + Math.random() * 2),
+          opacity: 0.5 + Math.random() * 0.4,
+          size: 0.8 + Math.random() * 2.2,
           color: ASH_COLORS[Math.floor(Math.random() * ASH_COLORS.length)],
         });
       }
     }
 
-    // Cull excess
-    if (particlesRef.current.length > 200) {
-      particlesRef.current = particlesRef.current.slice(-200);
-    }
+    if (particlesRef.current.length > 250) particlesRef.current = particlesRef.current.slice(-250);
 
-    // Update & draw particles
-    pCtx.clearRect(0, 0, W, H);
+    pCtx.clearRect(0, 0, W, H + FIRE_H);
     particlesRef.current = particlesRef.current.filter((p) => {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy *= 0.97;
-      p.opacity -= 0.008;
+      p.vy *= 0.96;
+      p.vx += (Math.random() - 0.5) * 0.1;
+      p.opacity -= 0.007;
       if (p.opacity <= 0) return false;
       pCtx.globalAlpha = p.opacity;
       pCtx.fillStyle = p.color;
@@ -218,36 +254,37 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
     });
     pCtx.globalAlpha = 1;
 
-    // ── Check completion ──
-    if (done && !burnDoneRef.current) {
+    // ── 6. Completion ────────────────────────────────────────────────────────
+    if (allDone && !burnDoneRef.current && particlesRef.current.length === 0) {
       burnDoneRef.current = true;
-      // Collapse: fade parchment
-      setParchmentOpacity(0);
-      setTimeout(onComplete, 1000);
+      setTimeout(onComplete, 600);
       return;
     }
 
     rafRef.current = requestAnimationFrame(animate);
   }, [onComplete]);
 
-  // Kick off when triggered
   useEffect(() => {
     if (!trigger) return;
 
-    const burnCanvas = burnCanvasRef.current;
-    const particleCanvas = particleCanvasRef.current;
     const parchment = parchmentRef.current;
-    if (!burnCanvas || !particleCanvas || !parchment) return;
+    const coverCanvas = coverCanvasRef.current;
+    const fireCanvas = fireCanvasRef.current;
+    const particleCanvas = particleCanvasRef.current;
+    if (!parchment || !coverCanvas || !fireCanvas || !particleCanvas) return;
 
     const W = parchment.offsetWidth;
     const H = parchment.offsetHeight;
 
-    burnCanvas.width = W;
-    burnCanvas.height = H;
+    coverCanvas.width = W;
+    coverCanvas.height = H;
+    fireCanvas.width = W;
+    fireCanvas.height = H + FIRE_H;
     particleCanvas.width = W;
-    particleCanvas.height = H;
+    particleCanvas.height = H + FIRE_H;
 
     burnLineRef.current = new Float32Array(W).fill(H);
+    fireGridRef.current = new Uint8Array(W * FIRE_H).fill(0);
     particlesRef.current = [];
     burnDoneRef.current = false;
     startTimeRef.current = performance.now();
@@ -256,29 +293,21 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
     return () => cancelAnimationFrame(rafRef.current);
   }, [trigger, animate]);
 
-  // prefers-reduced-motion
-  const prefersReduced =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
+  // Reduced motion fallback
   useEffect(() => {
-    if (trigger && prefersReduced) {
-      setParchmentOpacity(0);
-      const t = setTimeout(onComplete, 2000);
-      return () => clearTimeout(t);
-    }
-  }, [trigger, prefersReduced, onComplete]);
+    if (!trigger) return;
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setTimeout(onComplete, 2000);
+    return () => clearTimeout(t);
+  }, [trigger, onComplete]);
 
   return (
     <div
       aria-label="Your secret is being destroyed"
-      style={{
-        position: "relative",
-        display: "inline-block",
-        filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.7))",
-      }}
+      style={{ position: "relative", display: "inline-block" }}
     >
-      {/* Parchment */}
+      {/* Parchment paper */}
       <div
         ref={parchmentRef}
         style={{
@@ -286,37 +315,57 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
           width: "400px",
           maxWidth: "90vw",
           background: `
-            radial-gradient(ellipse at 20% 30%, rgba(201,168,124,0.5) 0%, transparent 60%),
-            radial-gradient(ellipse at 80% 70%, rgba(180,140,96,0.4) 0%, transparent 55%),
-            radial-gradient(ellipse at 50% 10%, rgba(220,196,158,0.3) 0%, transparent 50%),
-            linear-gradient(160deg, #ede0c4 0%, #e0cd9c 50%, #d4bc88 100%)
+            radial-gradient(ellipse at 18% 24%, rgba(120,80,10,0.38) 0%, transparent 52%),
+            radial-gradient(ellipse at 82% 76%, rgba(100,60,5,0.32) 0%, transparent 48%),
+            radial-gradient(ellipse at 60% 10%, rgba(180,140,60,0.22) 0%, transparent 45%),
+            radial-gradient(ellipse at 38% 88%, rgba(90,55,8,0.28) 0%, transparent 42%),
+            linear-gradient(168deg, #c8a84a 0%, #b89030 38%, #a07820 65%, #8f6818 100%)
           `,
-          boxShadow: "inset 0 0 40px rgba(100,60,10,0.2), inset 0 0 8px rgba(80,40,0,0.15)",
-          padding: "36px 32px",
-          transition: "opacity 1s ease",
-          opacity: parchmentOpacity,
+          boxShadow:
+            "0 12px 48px rgba(0,0,0,0.82), 0 3px 12px rgba(0,0,0,0.55), inset 0 0 50px rgba(60,30,0,0.45)",
+          padding: "38px 34px",
           willChange: "transform",
         }}
       >
-        {/* Grain overlay */}
+        {/* Papyrus fiber texture */}
         <svg
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.18, pointerEvents: "none" }}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
           aria-hidden="true"
         >
-          <filter id="grain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch" />
-            <feColorMatrix type="saturate" values="0" />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#grain)" />
+          <defs>
+            <filter id="pg">
+              <feTurbulence type="fractalNoise" baseFrequency="0.04 0.85" numOctaves="5" stitchTiles="stitch" result="noise" />
+              <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
+              <feBlend in="SourceGraphic" in2="gray" mode="multiply" />
+            </filter>
+            <filter id="spots">
+              <feTurbulence type="turbulence" baseFrequency="0.08" numOctaves="3" seed="8" result="t" />
+              <feColorMatrix type="matrix" values="0 0 0 0 0.28  0 0 0 0 0.18  0 0 0 0 0.02  0 0 0 6 -3" in="t" />
+            </filter>
+          </defs>
+          {/* Horizontal reed fiber lines */}
+          {Array.from({ length: 32 }, (_, i) => (
+            <line
+              key={i}
+              x1="0" y1={`${(i / 32) * 100}%`}
+              x2="100%" y2={`${(i / 32) * 100}%`}
+              stroke="#6b4510"
+              strokeWidth={i % 4 === 0 ? "0.9" : "0.4"}
+              strokeOpacity={i % 4 === 0 ? 0.18 : 0.09}
+            />
+          ))}
+          {/* Grain overlay */}
+          <rect width="100%" height="100%" filter="url(#pg)" opacity="0.28" />
+          {/* Age spots */}
+          <rect width="100%" height="100%" filter="url(#spots)" opacity="0.22" />
         </svg>
-
         <p
           style={{
             fontFamily: "'Cormorant Garamond', Georgia, serif",
             fontSize: "18px",
             color: "#3a2a1a",
             fontStyle: "italic",
-            lineHeight: 1.8,
+            lineHeight: 1.85,
             textAlign: "center",
             margin: 0,
             position: "relative",
@@ -327,27 +376,28 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
         </p>
       </div>
 
-      {/* Burn canvas — multiply blend removes parchment below burn line */}
+      {/* Cover canvas: paints #0f0c08 over burned area + charring */}
       <canvas
-        ref={burnCanvasRef}
+        ref={coverCanvasRef}
+        style={{ position: "absolute", inset: 0, pointerEvents: "none", clipPath }}
+      />
+
+      {/* Fire canvas: Doom-style flames, sits above parchment (extends upward) */}
+      <canvas
+        ref={fireCanvasRef}
         style={{
           position: "absolute",
-          inset: 0,
+          left: 0,
+          top: -FIRE_H,
           pointerEvents: "none",
-          mixBlendMode: "multiply",
-          clipPath,
+          clipPath: `inset(${FIRE_H}px 0 0 0)`, // only show the part overlapping parchment
         }}
       />
 
-      {/* Particle canvas */}
+      {/* Ash particle canvas */}
       <canvas
         ref={particleCanvasRef}
-        style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none",
-          clipPath,
-        }}
+        style={{ position: "absolute", left: 0, top: -FIRE_H, pointerEvents: "none" }}
       />
     </div>
   );

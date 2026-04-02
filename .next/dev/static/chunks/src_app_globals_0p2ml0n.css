@@ -51,7 +51,7 @@
     --default-transition-timing-function: cubic-bezier(.4, 0, .2, 1);
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
-    --color-bg: #110e0a;
+    --color-bg: #0f0c08;
     --color-text: #d4c4b0;
     --color-muted: #8a7a68;
     --color-dim: #5a4a38;
@@ -434,10 +434,6 @@
 
   .mb-2 {
     margin-bottom: calc(var(--spacing) * 2);
-  }
-
-  .mb-3 {
-    margin-bottom: calc(var(--spacing) * 3);
   }
 
   .mb-4 {
