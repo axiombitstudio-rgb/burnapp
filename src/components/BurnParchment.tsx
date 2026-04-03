@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { createNoise2D } from "simplex-noise";
 
 interface BurnParchmentProps {
@@ -9,74 +9,6 @@ interface BurnParchmentProps {
   onComplete: () => void;
 }
 
-// ── Seeded RNG for stable ragged edges ──────────────────────────────────────
-function seededRng(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff;
-  };
-}
-
-function generateRaggedPath(w: number, h: number, seed = 42): string {
-  // Each edge gets its own RNG stream so they can't correlate
-  const rngTop    = seededRng(seed);
-  const rngRight  = seededRng(seed + 7919);
-  const rngBottom = seededRng(seed + 3571);
-  const rngLeft   = seededRng(seed + 6247);
-
-  const pts: [number, number][] = [];
-
-  // Vary jag along an edge using a burst envelope:
-  // burstCenters defines positions [0..1] where tearing clusters occur
-  function edgeWobble(
-    rng: () => number,
-    t: number,          // position along edge 0..1
-    baseJag: number,
-    burstCenters: number[],
-    burstWidth: number,
-    burstScale: number,
-  ): number {
-    // Local jag = baseJag amplified near burst centers
-    let localJag = baseJag;
-    for (const c of burstCenters) {
-      const d = Math.abs(t - c);
-      if (d < burstWidth) localJag += baseJag * burstScale * (1 - d / burstWidth);
-    }
-    const r = rng();
-    const spike = r < 0.08 ? 3.5 : r < 0.22 ? 1.8 : 1.0;
-    return (rng() * 2 - 1) * localJag * spike;
-  }
-
-  const segs = 72;
-
-  // Top — calm on the left, burst of tears around 60–70%
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const dy = edgeWobble(rngTop, t, 10, [0.62, 0.85], 0.14, 2.2);
-    pts.push([(t) * w, dy]);
-  }
-  // Right — scattered small tears, one deeper cluster near 40%
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const dx = edgeWobble(rngRight, t, 9, [0.38, 0.72], 0.10, 1.8);
-    pts.push([w + dx, t * h]);
-  }
-  // Bottom — two distinct burst zones, otherwise smooth
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const dy = edgeWobble(rngBottom, t, 11, [0.20, 0.75], 0.13, 2.4);
-    pts.push([((segs - i) / segs) * w, h + dy]);
-  }
-  // Left — mostly calm with one rough patch near 55%
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const dx = edgeWobble(rngLeft, t, 8, [0.52], 0.16, 2.0);
-    pts.push([dx, ((segs - i) / segs) * h]);
-  }
-
-  return "polygon(" + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
-}
 
 // ── Fire colour palette (Doom-style: transparent → dark red → orange → yellow → white) ──
 function buildFirePalette(): Uint8ClampedArray {
@@ -132,13 +64,6 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
   const noise2D = useRef(createNoise2D());
   const startTimeRef = useRef<number>(0);
   const burnDoneRef = useRef(false);
-  const [clipPath, setClipPath] = useState("");
-
-  useEffect(() => {
-    const el = parchmentRef.current;
-    if (!el) return;
-    setClipPath(generateRaggedPath(el.offsetWidth, el.offsetHeight));
-  }, [text]);
 
   const animate = useCallback(() => {
     const coverCanvas = coverCanvasRef.current;
@@ -359,20 +284,13 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
       <div
         ref={parchmentRef}
         style={{
-          clipPath,
-          width: "400px",
-          maxWidth: "90vw",
-          background: `
-            radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.20) 0%, transparent 42%),
-            radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.18) 0%, transparent 40%),
-            radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.15) 0%, transparent 38%),
-            radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.17) 0%, transparent 40%),
-            radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.07) 0%, transparent 65%),
-            linear-gradient(162deg, #ead4b3 0%, #d8bd95 30%, #bba27d 58%, #a18b6b 100%)
-          `,
+          width: "min(90vw, 75vh * (896 / 1200))",
+          aspectRatio: "896 / 1200",
+          background: "url('/parchment.png') center / 100% 100% no-repeat",
           boxShadow:
-            "0 12px 48px rgba(0,0,0,0.88), 0 3px 12px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
-          padding: "38px 34px",
+            "0 12px 48px rgba(0,0,0,0.75), 0 3px 12px rgba(0,0,0,0.5)",
+          padding: "5% 6%",
+          boxSizing: "border-box",
           willChange: "transform",
         }}
       >
@@ -411,7 +329,7 @@ export default function BurnParchment({ text, trigger, onComplete }: BurnParchme
       {/* Cover canvas: paints #0f0c08 over burned area + charring */}
       <canvas
         ref={coverCanvasRef}
-        style={{ position: "absolute", inset: 0, pointerEvents: "none", clipPath }}
+        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
       />
 
       {/* Fire canvas: Doom-style flames, sits above parchment (extends upward) */}

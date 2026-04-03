@@ -138,84 +138,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$simplex$2d$n
 ;
 ;
 ;
-// ── Seeded RNG for stable ragged edges ──────────────────────────────────────
-function seededRng(seed) {
-    let s = seed;
-    return ()=>{
-        s = s * 1664525 + 1013904223 & 0xffffffff;
-        return (s >>> 0) / 0xffffffff;
-    };
-}
-function generateRaggedPath(w, h, seed = 42) {
-    // Each edge gets its own RNG stream so they can't correlate
-    const rngTop = seededRng(seed);
-    const rngRight = seededRng(seed + 7919);
-    const rngBottom = seededRng(seed + 3571);
-    const rngLeft = seededRng(seed + 6247);
-    const pts = [];
-    // Vary jag along an edge using a burst envelope:
-    // burstCenters defines positions [0..1] where tearing clusters occur
-    function edgeWobble(rng, t, baseJag, burstCenters, burstWidth, burstScale) {
-        // Local jag = baseJag amplified near burst centers
-        let localJag = baseJag;
-        for (const c of burstCenters){
-            const d = Math.abs(t - c);
-            if (d < burstWidth) localJag += baseJag * burstScale * (1 - d / burstWidth);
-        }
-        const r = rng();
-        const spike = r < 0.08 ? 3.5 : r < 0.22 ? 1.8 : 1.0;
-        return (rng() * 2 - 1) * localJag * spike;
-    }
-    const segs = 72;
-    // Top — calm on the left, burst of tears around 60–70%
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        const dy = edgeWobble(rngTop, t, 10, [
-            0.62,
-            0.85
-        ], 0.14, 2.2);
-        pts.push([
-            t * w,
-            dy
-        ]);
-    }
-    // Right — scattered small tears, one deeper cluster near 40%
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        const dx = edgeWobble(rngRight, t, 9, [
-            0.38,
-            0.72
-        ], 0.10, 1.8);
-        pts.push([
-            w + dx,
-            t * h
-        ]);
-    }
-    // Bottom — two distinct burst zones, otherwise smooth
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        const dy = edgeWobble(rngBottom, t, 11, [
-            0.20,
-            0.75
-        ], 0.13, 2.4);
-        pts.push([
-            (segs - i) / segs * w,
-            h + dy
-        ]);
-    }
-    // Left — mostly calm with one rough patch near 55%
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        const dx = edgeWobble(rngLeft, t, 8, [
-            0.52
-        ], 0.16, 2.0);
-        pts.push([
-            dx,
-            (segs - i) / segs * h
-        ]);
-    }
-    return "polygon(" + pts.map(([x, y])=>`${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
-}
 // ── Fire colour palette (Doom-style: transparent → dark red → orange → yellow → white) ──
 function buildFirePalette() {
     const p = new Uint8ClampedArray(256 * 4);
@@ -286,14 +208,6 @@ function BurnParchment({ text, trigger, onComplete }) {
     const noise2D = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$simplex$2d$noise$2f$dist$2f$esm$2f$simplex$2d$noise$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createNoise2D"])());
     const startTimeRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(0);
     const burnDoneRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(false);
-    const [clipPath, setClipPath] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
-        const el = parchmentRef.current;
-        if (!el) return;
-        setClipPath(generateRaggedPath(el.offsetWidth, el.offsetHeight));
-    }, [
-        text
-    ]);
     const animate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(()=>{
         const coverCanvas = coverCanvasRef.current;
         const fireCanvas = fireCanvasRef.current;
@@ -495,19 +409,12 @@ function BurnParchment({ text, trigger, onComplete }) {
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 ref: parchmentRef,
                 style: {
-                    clipPath,
-                    width: "400px",
-                    maxWidth: "90vw",
-                    background: `
-            radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.20) 0%, transparent 42%),
-            radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.18) 0%, transparent 40%),
-            radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.15) 0%, transparent 38%),
-            radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.17) 0%, transparent 40%),
-            radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.07) 0%, transparent 65%),
-            linear-gradient(162deg, #ead4b3 0%, #d8bd95 30%, #bba27d 58%, #a18b6b 100%)
-          `,
-                    boxShadow: "0 12px 48px rgba(0,0,0,0.88), 0 3px 12px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
-                    padding: "38px 34px",
+                    width: "min(90vw, 75vh * (896 / 1200))",
+                    aspectRatio: "896 / 1200",
+                    background: "url('/parchment.png') center / 100% 100% no-repeat",
+                    boxShadow: "0 12px 48px rgba(0,0,0,0.75), 0 3px 12px rgba(0,0,0,0.5)",
+                    padding: "5% 6%",
+                    boxSizing: "border-box",
                     willChange: "transform"
                 },
                 children: [
@@ -533,7 +440,7 @@ function BurnParchment({ text, trigger, onComplete }) {
                                             result: "noise"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/BurnParchment.tsx",
-                                            lineNumber: 386,
+                                            lineNumber: 304,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("feColorMatrix", {
@@ -543,7 +450,7 @@ function BurnParchment({ text, trigger, onComplete }) {
                                             result: "gray"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/BurnParchment.tsx",
-                                            lineNumber: 387,
+                                            lineNumber: 305,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("feBlend", {
@@ -552,18 +459,18 @@ function BurnParchment({ text, trigger, onComplete }) {
                                             mode: "multiply"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/BurnParchment.tsx",
-                                            lineNumber: 388,
+                                            lineNumber: 306,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/BurnParchment.tsx",
-                                    lineNumber: 385,
+                                    lineNumber: 303,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/BurnParchment.tsx",
-                                lineNumber: 384,
+                                lineNumber: 302,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
@@ -573,13 +480,13 @@ function BurnParchment({ text, trigger, onComplete }) {
                                 opacity: "0.38"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/BurnParchment.tsx",
-                                lineNumber: 392,
+                                lineNumber: 310,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/BurnParchment.tsx",
-                        lineNumber: 380,
+                        lineNumber: 298,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -597,13 +504,13 @@ function BurnParchment({ text, trigger, onComplete }) {
                         children: text
                     }, void 0, false, {
                         fileName: "[project]/src/components/BurnParchment.tsx",
-                        lineNumber: 394,
+                        lineNumber: 312,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/BurnParchment.tsx",
-                lineNumber: 359,
+                lineNumber: 284,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("canvas", {
@@ -611,12 +518,11 @@ function BurnParchment({ text, trigger, onComplete }) {
                 style: {
                     position: "absolute",
                     inset: 0,
-                    pointerEvents: "none",
-                    clipPath
+                    pointerEvents: "none"
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/BurnParchment.tsx",
-                lineNumber: 412,
+                lineNumber: 330,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("canvas", {
@@ -630,7 +536,7 @@ function BurnParchment({ text, trigger, onComplete }) {
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/BurnParchment.tsx",
-                lineNumber: 418,
+                lineNumber: 336,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("canvas", {
@@ -643,13 +549,13 @@ function BurnParchment({ text, trigger, onComplete }) {
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/BurnParchment.tsx",
-                lineNumber: 430,
+                lineNumber: 348,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/BurnParchment.tsx",
-        lineNumber: 354,
+        lineNumber: 279,
         columnNumber: 5
     }, this);
 }
@@ -801,73 +707,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 "use client";
 ;
 ;
-// ── Seeded RNG + ragged clip-path (shared logic with BurnParchment) ──────────
-function seededRng(seed) {
-    let s = seed;
-    return ()=>{
-        s = s * 1664525 + 1013904223 & 0xffffffff;
-        return (s >>> 0) / 0xffffffff;
-    };
-}
-function generateRaggedPath(w, h, seed = 99) {
-    const rngTop = seededRng(seed);
-    const rngRight = seededRng(seed + 7919);
-    const rngBottom = seededRng(seed + 3571);
-    const rngLeft = seededRng(seed + 6247);
-    const pts = [];
-    function edgeWobble(rng, t, baseJag, burstCenters, burstWidth, burstScale) {
-        let localJag = baseJag;
-        for (const c of burstCenters){
-            const d = Math.abs(t - c);
-            if (d < burstWidth) localJag += baseJag * burstScale * (1 - d / burstWidth);
-        }
-        const r = rng();
-        const spike = r < 0.08 ? 3.5 : r < 0.22 ? 1.8 : 1.0;
-        return (rng() * 2 - 1) * localJag * spike;
-    }
-    const segs = 72;
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        pts.push([
-            t * w,
-            edgeWobble(rngTop, t, 10, [
-                0.30,
-                0.78
-            ], 0.14, 2.0)
-        ]);
-    }
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        pts.push([
-            w + edgeWobble(rngRight, t, 9, [
-                0.45,
-                0.68
-            ], 0.10, 1.8),
-            t * h
-        ]);
-    }
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        pts.push([
-            (segs - i) / segs * w,
-            h + edgeWobble(rngBottom, t, 11, [
-                0.15,
-                0.60
-            ], 0.13, 2.4)
-        ]);
-    }
-    for(let i = 0; i <= segs; i++){
-        const t = i / segs;
-        pts.push([
-            edgeWobble(rngLeft, t, 8, [
-                0.35,
-                0.80
-            ], 0.12, 2.0),
-            (segs - i) / segs * h
-        ]);
-    }
-    return "polygon(" + pts.map(([x, y])=>`${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
-}
 const LINES = [
     "I told her it didn't matter anymore.",
     "That I had made peace with it.",
@@ -880,7 +719,6 @@ function ParchmentIntro({ onComplete }) {
     const [started, setStarted] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [fading, setFading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [lineStates, setLineStates] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(LINES.map(()=>"visible"));
-    const [clipPath, setClipPath] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const parchmentRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     const lineRefs = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])([]);
     const emberContainerRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
@@ -922,11 +760,6 @@ function ParchmentIntro({ onComplete }) {
         setFading(true);
         setTimeout(onComplete, 800);
     };
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
-        const el = parchmentRef.current;
-        if (!el) return;
-        setClipPath(generateRaggedPath(el.offsetWidth, el.offsetHeight));
-    }, []);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         const t = setTimeout(()=>setStarted(true), 1600);
         return ()=>clearTimeout(t);
@@ -989,12 +822,12 @@ function ParchmentIntro({ onComplete }) {
             ref: parchmentRef,
             style: {
                 position: "relative",
-                background: "radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.20) 0%, transparent 42%), radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.18) 0%, transparent 40%), radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.15) 0%, transparent 38%), radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.17) 0%, transparent 40%), radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.07) 0%, transparent 65%), linear-gradient(162deg, #ead4b3 0%, #d8bd95 30%, #bba27d 58%, #a18b6b 100%)",
-                boxShadow: "0 16px 64px rgba(0,0,0,0.88), 0 4px 20px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
-                clipPath,
-                padding: "52px 56px",
-                maxWidth: "440px",
-                width: "90%",
+                background: "url('/parchment.png') center / 100% 100% no-repeat",
+                boxShadow: "0 16px 64px rgba(0,0,0,0.75), 0 4px 20px rgba(0,0,0,0.5)",
+                padding: "5% 6%",
+                boxSizing: "border-box",
+                width: "min(90vw, 75vh * (896 / 1200))",
+                aspectRatio: "896 / 1200",
                 opacity: fading ? 0 : 1,
                 transition: "opacity 1s ease"
             },
@@ -1009,7 +842,7 @@ function ParchmentIntro({ onComplete }) {
                     }
                 }, void 0, false, {
                     fileName: "[project]/src/components/ParchmentIntro.tsx",
-                    lineNumber: 206,
+                    lineNumber: 144,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
@@ -1034,7 +867,7 @@ function ParchmentIntro({ onComplete }) {
                                         result: "noise"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/ParchmentIntro.tsx",
-                                        lineNumber: 223,
+                                        lineNumber: 161,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("feColorMatrix", {
@@ -1044,7 +877,7 @@ function ParchmentIntro({ onComplete }) {
                                         result: "gray"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/ParchmentIntro.tsx",
-                                        lineNumber: 224,
+                                        lineNumber: 162,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("feBlend", {
@@ -1053,18 +886,18 @@ function ParchmentIntro({ onComplete }) {
                                         mode: "multiply"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/ParchmentIntro.tsx",
-                                        lineNumber: 225,
+                                        lineNumber: 163,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/ParchmentIntro.tsx",
-                                lineNumber: 222,
+                                lineNumber: 160,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/ParchmentIntro.tsx",
-                            lineNumber: 221,
+                            lineNumber: 159,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
@@ -1074,20 +907,20 @@ function ParchmentIntro({ onComplete }) {
                             opacity: "0.38"
                         }, void 0, false, {
                             fileName: "[project]/src/components/ParchmentIntro.tsx",
-                            lineNumber: 228,
+                            lineNumber: 166,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/ParchmentIntro.tsx",
-                    lineNumber: 217,
+                    lineNumber: 155,
                     columnNumber: 9
                 }, this),
                 LINES.map((line, i)=>{
                     const state = lineStates[i];
                     const isLast = i === LINES.length - 1;
                     let opacity = 1;
-                    let color = "#2a1604";
+                    let color = "#1a0e04";
                     let textShadow = "none";
                     let transform = "translateY(0)";
                     let transition = "none";
@@ -1120,7 +953,7 @@ function ParchmentIntro({ onComplete }) {
                         children: line || "\u00A0"
                     }, i, false, {
                         fileName: "[project]/src/components/ParchmentIntro.tsx",
-                        lineNumber: 254,
+                        lineNumber: 192,
                         columnNumber: 13
                     }, this);
                 }),
@@ -1138,18 +971,18 @@ function ParchmentIntro({ onComplete }) {
                     children: "tap to skip"
                 }, void 0, false, {
                     fileName: "[project]/src/components/ParchmentIntro.tsx",
-                    lineNumber: 278,
+                    lineNumber: 216,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/ParchmentIntro.tsx",
-            lineNumber: 189,
+            lineNumber: 127,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/ParchmentIntro.tsx",
-        lineNumber: 184,
+        lineNumber: 122,
         columnNumber: 5
     }, this);
 }

@@ -2,62 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// ── Seeded RNG + ragged clip-path (shared logic with BurnParchment) ──────────
-function seededRng(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff;
-  };
-}
-
-function generateRaggedPath(w: number, h: number, seed = 99): string {
-  const rngTop    = seededRng(seed);
-  const rngRight  = seededRng(seed + 7919);
-  const rngBottom = seededRng(seed + 3571);
-  const rngLeft   = seededRng(seed + 6247);
-
-  const pts: [number, number][] = [];
-
-  function edgeWobble(
-    rng: () => number,
-    t: number,
-    baseJag: number,
-    burstCenters: number[],
-    burstWidth: number,
-    burstScale: number,
-  ): number {
-    let localJag = baseJag;
-    for (const c of burstCenters) {
-      const d = Math.abs(t - c);
-      if (d < burstWidth) localJag += baseJag * burstScale * (1 - d / burstWidth);
-    }
-    const r = rng();
-    const spike = r < 0.08 ? 3.5 : r < 0.22 ? 1.8 : 1.0;
-    return (rng() * 2 - 1) * localJag * spike;
-  }
-
-  const segs = 72;
-
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    pts.push([t * w, edgeWobble(rngTop, t, 10, [0.30, 0.78], 0.14, 2.0)]);
-  }
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    pts.push([w + edgeWobble(rngRight, t, 9, [0.45, 0.68], 0.10, 1.8), t * h]);
-  }
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    pts.push([((segs - i) / segs) * w, h + edgeWobble(rngBottom, t, 11, [0.15, 0.60], 0.13, 2.4)]);
-  }
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    pts.push([edgeWobble(rngLeft, t, 8, [0.35, 0.80], 0.12, 2.0), ((segs - i) / segs) * h]);
-  }
-
-  return "polygon(" + pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ") + ")";
-}
 
 const LINES = [
   "I told her it didn't matter anymore.",
@@ -78,7 +22,6 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
   const [started, setStarted] = useState(false);
   const [fading, setFading] = useState(false);
   const [lineStates, setLineStates] = useState<LineState[]>(LINES.map(() => "visible"));
-  const [clipPath, setClipPath] = useState("");
   const parchmentRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const emberContainerRef = useRef<HTMLDivElement>(null);
@@ -117,11 +60,6 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
     setTimeout(onComplete, 800);
   };
 
-  useEffect(() => {
-    const el = parchmentRef.current;
-    if (!el) return;
-    setClipPath(generateRaggedPath(el.offsetWidth, el.offsetHeight));
-  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setStarted(true), 1600);
@@ -191,13 +129,13 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
         style={{
           position: "relative",
           background:
-            "radial-gradient(ellipse at 12% 18%, rgba(10,4,0,0.20) 0%, transparent 42%), radial-gradient(ellipse at 88% 82%, rgba(8,3,0,0.18) 0%, transparent 40%), radial-gradient(ellipse at 78% 12%, rgba(18,8,0,0.15) 0%, transparent 38%), radial-gradient(ellipse at 25% 90%, rgba(12,5,0,0.17) 0%, transparent 40%), radial-gradient(ellipse at 50% 50%, rgba(80,42,6,0.07) 0%, transparent 65%), linear-gradient(162deg, #ead4b3 0%, #d8bd95 30%, #bba27d 58%, #a18b6b 100%)",
+            "url('/parchment.png') center / 100% 100% no-repeat",
           boxShadow:
-            "0 16px 64px rgba(0,0,0,0.88), 0 4px 20px rgba(0,0,0,0.65), inset 0 0 60px rgba(20,8,0,0.70)",
-          clipPath,
-          padding: "52px 56px",
-          maxWidth: "440px",
-          width: "90%",
+            "0 16px 64px rgba(0,0,0,0.75), 0 4px 20px rgba(0,0,0,0.5)",
+          padding: "5% 6%",
+          boxSizing: "border-box",
+          width: "min(90vw, 75vh * (896 / 1200))",
+          aspectRatio: "896 / 1200",
           opacity: fading ? 0 : 1,
           transition: "opacity 1s ease",
         }}
@@ -233,7 +171,7 @@ export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
           const isLast = i === LINES.length - 1;
 
           let opacity = 1;
-          let color = "#2a1604";
+          let color = "#1a0e04";
           let textShadow = "none";
           let transform = "translateY(0)";
           let transition = "none";

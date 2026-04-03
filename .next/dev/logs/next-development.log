@@ -53,3 +53,31 @@
 {"timestamp":"00:54:26.241","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
 {"timestamp":"00:54:36.567","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
 {"timestamp":"00:54:36.574","source":"Browser","level":"LOG","message":"Browsing Topics API removed from http://localhost:3000/ which is main frame"}
+{"timestamp":"19:39:04.055","source":"Server","level":"LOG","message":"✓ Compiled in 972ms"}
+{"timestamp":"19:39:10.383","source":"Server","level":"LOG","message":"✓ Compiled in 683ms"}
+{"timestamp":"19:39:16.927","source":"Server","level":"LOG","message":"✓ Compiled in 1323ms"}
+{"timestamp":"19:39:22.809","source":"Server","level":"LOG","message":"✓ Compiled in 925ms"}
+{"timestamp":"19:39:37.630","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"19:39:40.716","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"19:40:24.423","source":"Server","level":"LOG","message":"✓ Compiled in 217ms"}
+{"timestamp":"19:40:59.010","source":"Server","level":"LOG","message":"✓ Compiled in 84ms"}
+{"timestamp":"19:41:03.346","source":"Server","level":"LOG","message":"✓ Compiled in 87ms"}
+{"timestamp":"19:41:07.649","source":"Server","level":"LOG","message":"✓ Compiled in 86ms"}
+{"timestamp":"19:41:23.361","source":"Server","level":"LOG","message":"✓ Compiled in 58ms"}
+{"timestamp":"19:41:28.019","source":"Server","level":"LOG","message":"✓ Compiled in 65ms"}
+{"timestamp":"19:41:39.971","source":"Server","level":"LOG","message":"✓ Compiled in 58ms"}
+{"timestamp":"19:41:54.603","source":"Server","level":"LOG","message":"✓ Compiled in 87ms"}
+{"timestamp":"19:43:28.875","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"19:43:28.913","source":"Browser","level":"LOG","message":"Browsing Topics API removed from http://localhost:3000/ which is main frame"}
+{"timestamp":"19:44:04.155","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"19:44:14.980","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"19:44:35.987","source":"Server","level":"LOG","message":"✓ Compiled in 452ms"}
+{"timestamp":"19:44:42.297","source":"Server","level":"LOG","message":"✓ Compiled in 390ms"}
+{"timestamp":"19:45:43.636","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"19:45:49.058","source":"Browser","level":"LOG","message":"Browsing Topics API removed from http://localhost:3000/ which is main frame"}
+{"timestamp":"19:48:25.663","source":"Server","level":"LOG","message":"✓ Compiled in 163ms"}
+{"timestamp":"19:48:33.400","source":"Server","level":"LOG","message":"✓ Compiled in 180ms"}
+{"timestamp":"19:49:25.168","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"19:59:37.591","source":"Server","level":"LOG","message":"✓ Compiled in 415ms"}
+{"timestamp":"20:01:23.415","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"20:01:23.416","source":"Browser","level":"LOG","message":"Browsing Topics API removed from http://localhost:3000/ which is main frame"}
