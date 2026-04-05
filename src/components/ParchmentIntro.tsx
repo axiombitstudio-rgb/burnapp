@@ -2,230 +2,169 @@
 
 import { useEffect, useRef, useState } from "react";
 
-
 const LINES = [
   "I told her it didn't matter anymore.",
   "That I had made peace with it.",
   "I smiled when I said it.",
   "",
   "I still check her profile every night.",
-  "if it was right.",
 ];
 
-type LineState = "visible" | "burning" | "gone";
-
 interface ParchmentIntroProps {
-  onComplete: () => void;
+  onComplete: () => void; // video ends naturally
+  onSkip: () => void;     // user clicks skip
 }
 
-export default function ParchmentIntro({ onComplete }: ParchmentIntroProps) {
-  const [started, setStarted] = useState(false);
+export default function ParchmentIntro({ onComplete, onSkip }: ParchmentIntroProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [textOpacity, setTextOpacity] = useState(1);
   const [fading, setFading] = useState(false);
-  const [lineStates, setLineStates] = useState<LineState[]>(LINES.map(() => "visible"));
-  const parchmentRef = useRef<HTMLDivElement>(null);
-  const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const emberContainerRef = useRef<HTMLDivElement>(null);
-  const cancelledRef = useRef(false);
-
-  const spawnEmbers = (lineEl: HTMLDivElement | null) => {
-    const container = emberContainerRef.current;
-    const parchment = parchmentRef.current;
-    if (!container || !parchment || !lineEl) return;
-    const pRect = parchment.getBoundingClientRect();
-    const lRect = lineEl.getBoundingClientRect();
-    const colors = ["#e87828", "#d85a30", "#c47a30", "#f09040", "#ff6020"];
-    for (let i = 0; i < 12; i++) {
-      const ember = document.createElement("div");
-      const x = lRect.left - pRect.left + Math.random() * lRect.width;
-      const y = lRect.top - pRect.top + Math.random() * lRect.height;
-      ember.style.cssText = `
-        position: absolute;
-        width: ${2 + Math.random() * 3}px;
-        height: ${2 + Math.random() * 3}px;
-        background: ${colors[Math.floor(Math.random() * colors.length)]};
-        border-radius: 50%;
-        pointer-events: none;
-        left: ${x}px;
-        top: ${y}px;
-        animation: emberFloat ${0.8 + Math.random() * 0.7}s ease-out forwards;
-      `;
-      container.appendChild(ember);
-      setTimeout(() => ember.remove(), 1500);
-    }
-  };
-
-  const skip = () => {
-    cancelledRef.current = true;
-    setFading(true);
-    setTimeout(onComplete, 800);
-  };
-
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setStarted(true), 1600);
+    const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
   }, []);
+  const doneFiredRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const onSkipRef = useRef(onSkip);
 
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+  useEffect(() => { onSkipRef.current = onSkip; }, [onSkip]);
+
+  // Autoplay on mount
   useEffect(() => {
-    if (!started) return;
-    cancelledRef.current = false;
-    const timers: ReturnType<typeof setTimeout>[] = [];
+    const video = videoRef.current;
+    if (!video) return;
+    video.play().catch(() => {});
+  }, []);
 
-    const wait = (ms: number) =>
-      new Promise<void>((resolve) => {
-        const t = setTimeout(() => {
-          if (!cancelledRef.current) resolve();
-        }, ms);
-        timers.push(t);
-      });
+  // Fade text as video plays, complete when video ends
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
-    const run = async () => {
-      for (let i = 0; i < LINES.length; i++) {
-        if (cancelledRef.current) return;
-        const isLast = i === LINES.length - 1;
-        const burnDuration = isLast ? 2000 : 650;
+    const handleTimeUpdate = () => {
+      const duration = video.duration;
+      if (!duration) return;
+      const progress = video.currentTime / duration;
+      const opacity =
+        progress < 0.2 ? 1 :
+        progress > 0.8 ? 0 :
+        1 - (progress - 0.2) / 0.6;
+      setTextOpacity(opacity);
+    };
 
-        spawnEmbers(lineRefs.current[i]);
-
-        setLineStates((prev) => {
-          const next = [...prev];
-          next[i] = "burning";
-          return next;
-        });
-
-        await wait(burnDuration);
-        if (cancelledRef.current) return;
-
-        setLineStates((prev) => {
-          const next = [...prev];
-          next[i] = "gone";
-          return next;
-        });
-
-        if (!isLast) await wait(180);
-      }
-
-      if (cancelledRef.current) return;
+    const handleEnded = () => {
+      if (doneFiredRef.current) return;
+      doneFiredRef.current = true;
       setFading(true);
-      await wait(1000);
-      if (!cancelledRef.current) onComplete();
+      setTimeout(() => onCompleteRef.current(), 1200);
     };
 
-    run();
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("ended", handleEnded);
     return () => {
-      cancelledRef.current = true;
-      timers.forEach(clearTimeout);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("ended", handleEnded);
     };
-  }, [started, onComplete]);
+  }, []);
+
+  const skip = () => {
+    if (doneFiredRef.current) return;
+    doneFiredRef.current = true;
+    setFading(true);
+    onSkipRef.current();
+  };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
-      style={{ background: "#0f0c08" }}
+      style={{
+        background: "#000000",
+        opacity:    fading ? 0 : mounted ? 1 : 0,
+        transition: fading ? "opacity 2.5s ease" : "opacity 2s ease",
+      }}
       onClick={skip}
     >
-      <div
-        ref={parchmentRef}
-        style={{
-          position: "relative",
-          background:
-            "url('/parchment.png') center / 100% 100% no-repeat",
-          boxShadow:
-            "0 16px 64px rgba(0,0,0,0.75), 0 4px 20px rgba(0,0,0,0.5)",
-          padding: "5% 6%",
-          boxSizing: "border-box",
-          width: "min(90vw, 75vh * (896 / 1200))",
-          aspectRatio: "896 / 1200",
-          opacity: fading ? 0 : 1,
-          transition: "opacity 1s ease",
-        }}
-      >
-        {/* Ember overlay */}
+      <div style={{ position: "relative", display: "inline-block" }}>
         <div
-          ref={emberContainerRef}
           style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            overflow: "hidden",
+            position:     "relative",
+            width:        "min(90vw, calc(75vh * (896 / 1200)))",
+            aspectRatio:  "896 / 1200",
+            overflow:     "hidden",
+            borderRadius: "16px",
+            boxShadow:    "0 16px 64px rgba(0,0,0,0.75), 0 4px 20px rgba(0,0,0,0.5)",
+          }}
+        >
+        {/* Video — cropped up 4% at bottom to hide watermark */}
+        <video
+          ref={videoRef}
+          src="/burn-effect.mp4"
+          playsInline
+          preload="auto"
+          muted
+          style={{
+            position:   "absolute",
+            top:        0,
+            left:       0,
+            width:      "100%",
+            height:     "110%",
+            objectFit:  "cover",
+            objectPosition: "top",
           }}
         />
 
-        {/* Papyrus fiber texture */}
-        <svg
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
-          aria-hidden="true"
+        {/* Text overlay — centered in the middle of the video */}
+        <div
+          style={{
+            position:       "absolute",
+            inset:          0,
+            display:        "flex",
+            flexDirection:  "column",
+            alignItems:     "center",
+            justifyContent: "center",
+            padding:        "10%",
+            boxSizing:      "border-box",
+            opacity:        textOpacity,
+            transition:     "opacity 0.15s linear",
+            pointerEvents:  "none",
+          }}
         >
-          <defs>
-            <filter id="pi-grain">
-              <feTurbulence type="fractalNoise" baseFrequency="0.03 0.92" numOctaves="6" stitchTiles="stitch" result="noise" />
-              <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
-              <feBlend in="SourceGraphic" in2="gray" mode="multiply" />
-            </filter>
-          </defs>
-          <rect width="100%" height="100%" filter="url(#pi-grain)" opacity="0.38" />
-        </svg>
-
-        {LINES.map((line, i) => {
-          const state = lineStates[i];
-          const isLast = i === LINES.length - 1;
-
-          let opacity = 1;
-          let color = "#1a0e04";
-          let textShadow = "none";
-          let transform = "translateY(0)";
-          let transition = "none";
-
-          if (state === "burning") {
-            opacity = 0;
-            color = "#b84010";
-            textShadow = "0 0 14px rgba(210,70,10,0.95)";
-            transform = "translateY(-8px)";
-            transition = isLast
-              ? "opacity 2s ease, transform 2s ease"
-              : "opacity 0.65s ease, transform 0.65s ease";
-          } else if (state === "gone") {
-            opacity = 0;
-          }
-
-          return (
+          {LINES.map((line, i) => (
             <div
               key={i}
-              ref={(el) => {
-                lineRefs.current[i] = el;
-              }}
               style={{
-                opacity,
-                color,
-                textShadow,
-                transform,
-                transition,
-                minHeight: line === "" ? "14px" : undefined,
+                minHeight:  line === "" ? "14px" : undefined,
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
-                fontSize: isLast ? "22px" : "17px",
-                fontWeight: isLast ? 400 : 300,
-                fontStyle: isLast ? "italic" : "normal",
+                fontSize:   "17px",
+                fontWeight: 300,
+                fontStyle:  "normal",
                 lineHeight: "2",
+                color:      "#1a0e04",
+                textAlign:  "center",
               }}
             >
               {line || "\u00A0"}
             </div>
-          );
-        })}
+          ))}
+        </div>
 
+        </div>
+        {/* tap to skip — outside the container */}
         <p
           style={{
-            position: "absolute",
-            bottom: "14px",
-            right: "20px",
-            fontSize: "10px",
-            color: "#9a7840",
+            textAlign:  "center",
+            marginTop:  "12px",
+            fontSize:   "18px",
+            color:      "#9a7840",
             fontFamily: "Georgia, serif",
-            fontStyle: "italic",
-            opacity: 0.5,
+            fontStyle:  "italic",
+            opacity:    0.5,
           }}
         >
-          tap to skip
+          Skip
         </p>
       </div>
     </div>

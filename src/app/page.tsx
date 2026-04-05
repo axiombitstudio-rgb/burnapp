@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Nav from "@/components/Nav";
+import FlameGlow from "@/components/FlameGlow";
+import FlameTransition from "@/components/FlameTransition";
 import Screen from "@/components/Screen";
 import BurnButton from "@/components/BurnButton";
-import BurnParchment from "@/components/BurnParchment";
+import ParchmentBurn from "@/components/ParchmentBurn";
 import TimerBar from "@/components/TimerBar";
 import CountdownRing from "@/components/CountdownRing";
 import ParchmentIntro from "@/components/ParchmentIntro";
@@ -34,14 +36,35 @@ export default function Home() {
   const [secret, setSecret] = useState("");
   const [prompt, setPrompt] = useState("");
   const [witnessCount, setWitnessCount] = useState(12);
-  const [burnCount] = useState(() => 180 + Math.floor(Math.random() * 200));
+  const [burnCount, setBurnCount] = useState<number | null>(null);
   const [witnessResponse, setWitnessResponse] = useState<string | null>(null);
   const [primerSecret, setPrimerSecret] = useState("");
   const [primerReady, setPrimerReady] = useState(false);
   const [witnessSecret, setWitnessSecret] = useState("");
   const [witnessResponses, setWitnessResponses] = useState<string[]>([]);
+  const [flameTransition, setFlameTransition] = useState(false);
+  const flameNavRef = useRef<(() => void) | null>(null);
+  // Trigger flame then navigate to home
+  const flameToHome = useCallback((nav: () => void) => {
+    nav();
+    flameNavRef.current = null;
+    setFlameTransition(true);
+  }, []);
   const responseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const witnessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setBurnCount(180 + Math.floor(Math.random() * 200));
+  }, []);
+
+  // Kill all pending timers on intro or home
+  useEffect(() => {
+    if (screen !== "intro" && screen !== "home") return;
+    if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
+    if (witnessTimerRef.current) clearTimeout(witnessTimerRef.current);
+    responseTimerRef.current = null;
+    witnessTimerRef.current = null;
+  }, [screen]);
 
   // Witness count ticker
   useEffect(() => {
@@ -56,9 +79,8 @@ export default function Home() {
     setPrompt(pickRandom(PROMPTS));
   }, []);
 
-  const goTo = useCallback((s: AppScreen) => {
-    setScreen(s);
-  }, []);
+  const goTo = useCallback((s: AppScreen) => setScreen(s), []);
+
 
   const handleModeChange = (m: "write" | "witness") => {
     setMode(m);
@@ -71,7 +93,6 @@ export default function Home() {
   };
 
   const handleBegin = () => {
-    // Witness primer: show a stranger's secret before asking user to write
     setPrimerSecret(pickRandom(SAMPLE_SECRETS));
     setPrimerReady(false);
     goTo("witness-primer");
@@ -81,8 +102,6 @@ export default function Home() {
   const handleBurn = () => {
     setWitnessResponse(null);
     goTo("witnessing");
-
-    // Simulate stranger response after 3-6s
     const delay = 3000 + Math.random() * 3000;
     responseTimerRef.current = setTimeout(() => {
       const set = pickRandomSet();
@@ -106,7 +125,6 @@ export default function Home() {
 
   const handleWitnessAccept = () => {
     goTo("witness-waiting");
-    // Simulate match after 2-4s
     const delay = 2000 + Math.random() * 2000;
     witnessTimerRef.current = setTimeout(() => {
       setWitnessSecret(pickRandom(SAMPLE_SECRETS));
@@ -125,10 +143,12 @@ export default function Home() {
   }, [goTo]);
 
   const resetHome = () => {
+    if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
+    if (witnessTimerRef.current) clearTimeout(witnessTimerRef.current);
     setSecret("");
     setWitnessResponse(null);
     setMode("home");
-    goTo("home");
+    flameToHome(() => goTo("home"));
   };
 
   const newPrompt = () => {
@@ -137,48 +157,63 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen bg-bg overflow-hidden">
-      {screen === "intro" && (
-        <ParchmentIntro onComplete={() => goTo("home")} />
-      )}
-      <Nav mode={mode} onModeChange={handleModeChange} witnessCount={witnessCount} />
+      {/* Flame transition overlay — always mounted */}
+      <FlameTransition
+        active={flameTransition}
+        onComplete={() => {
+          setFlameTransition(false);
+          flameNavRef.current?.();
+          flameNavRef.current = null;
+        }}
+      />
 
-      {/* ═══ HOME ═══ */}
-      <Screen active={screen === "home"}>
-        {/* Warm glow */}
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at center bottom, rgba(180,100,30,0.1) 0%, transparent 65%)",
+      {/* Bottom glow — all pages except intro */}
+      {screen !== "intro" && <FlameGlow />}
+
+      {screen === "intro" && (
+        <ParchmentIntro
+          onComplete={() => {
+            // Video ended naturally → go to witness flow, no flame
+            goTo("witness-oath");
+          }}
+          onSkip={() => {
+            // User clicked skip → flame transition to home
+            if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
+            if (witnessTimerRef.current) clearTimeout(witnessTimerRef.current);
+            setSecret("");
+            setWitnessResponse(null);
+            setMode("home");
+            flameToHome(() => goTo("home"));
           }}
         />
-        <span className="text-[12px] text-muted tracking-[5px] uppercase mb-9">
-          Burn
-        </span>
-        <h1 className="text-[42px] font-normal text-text leading-[1.2] mb-7 max-w-[460px] font-serif">
-          Say what you could never{" "}
-          <em className="text-warm italic">say.</em>
-        </h1>
-        <p className="text-[15px] text-dim italic leading-relaxed mb-9 max-w-[360px] font-serif">
-          Write it. A stranger reads it for ten seconds.
-          <br />
-          Then it&apos;s gone forever.
-        </p>
-        <BurnButton onClick={handleBegin}>Begin</BurnButton>
-        <p className="text-[12px] text-deep italic mt-5">
-          {burnCount} secrets burned today
-        </p>
-      </Screen>
+      )}
+
+      {screen !== "intro" && <Nav mode={mode} onModeChange={handleModeChange} witnessCount={witnessCount} />}
+
+      {/* ═══ HOME ═══ */}
+      {screen === "home" && (
+        <div className="fixed inset-0 flex flex-col items-center justify-center text-center px-6" style={{ zIndex: 1 }}>
+          <span className="text-[12px] text-muted tracking-[5px] uppercase mb-9">
+            Burn
+          </span>
+          <h1 className="text-[42px] font-normal text-text leading-[1.2] mb-7 max-w-[460px] font-serif">
+            Say what you could never{" "}
+            <em className="text-warm italic">say.</em>
+          </h1>
+          <p className="text-[15px] text-dim italic leading-relaxed mb-9 max-w-[360px] font-serif">
+            Write it. A stranger reads it for ten seconds.
+            <br />
+            Then it&apos;s gone forever.
+          </p>
+          <BurnButton onClick={handleBegin}>Begin</BurnButton>
+          <p className="text-[12px] text-deep italic mt-5">
+            {burnCount !== null ? `${burnCount} secrets burned today` : ""}
+          </p>
+        </div>
+      )}
 
       {/* ═══ WITNESS PRIMER ═══ */}
       <Screen active={screen === "witness-primer"}>
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at center bottom, rgba(180,100,30,0.1) 0%, transparent 65%)",
-          }}
-        />
         <span className="text-[11px] text-deep tracking-[2px] uppercase mb-4">
           Someone burned this moments ago
         </span>
@@ -235,7 +270,7 @@ export default function Home() {
         </button>
       </Screen>
 
-      {/* ═══ WITNESSING (writer's view) ═══ */}
+      {/* ═══ WITNESSING ═══ */}
       <Screen active={screen === "witnessing"}>
         <div className="text-[11px] text-deep mb-2">
           <span className="inline-block w-[6px] h-[6px] rounded-full bg-accent animate-pulse-glow mr-1.5" />
@@ -256,9 +291,9 @@ export default function Home() {
 
       {/* ═══ BURNING ═══ */}
       <Screen active={screen === "burning"}>
-        <BurnParchment
+        <ParchmentBurn
           text={secret}
-          trigger={screen === "burning"}
+          burning={screen === "burning"}
           onComplete={handleBurnComplete}
         />
       </Screen>
@@ -274,11 +309,7 @@ export default function Home() {
         <BurnButton onClick={resetHome}>Again</BurnButton>
         <BurnButton
           variant="ghost"
-          onClick={() =>
-            alert(
-              "Archive — keep a private ghost of what you burned. Coming soon."
-            )
-          }
+          onClick={() => alert("Archive — keep a private ghost of what you burned. Coming soon.")}
           className="mt-3"
         >
           Save to archive
@@ -291,16 +322,8 @@ export default function Home() {
           Four rules
         </h2>
         <div className="max-w-[300px] mb-6">
-          {[
-            "Read it",
-            "Don't judge it",
-            "Presence, not advice",
-            "Let it go",
-          ].map((rule, i) => (
-            <p
-              key={i}
-              className="text-[14px] text-muted italic leading-[2.2] font-serif"
-            >
+          {["Read it", "Don't judge it", "Presence, not advice", "Let it go"].map((rule, i) => (
+            <p key={i} className="text-[14px] text-muted italic leading-[2.2] font-serif">
               <span className="text-accent">{i + 1}.</span> {rule}
             </p>
           ))}
@@ -338,13 +361,13 @@ export default function Home() {
 
       {/* ═══ WITNESS SENT ═══ */}
       <Screen active={screen === "witness-sent"}>
-        <h2 className="text-[18px] text-accent font-light font-serif">
+        <h2 className="text-[48px] text-accent font-light font-serif leading-none">
           Felt.
         </h2>
-        <p className="text-[12px] text-deep italic mt-2 mb-6">
+        <p className="text-[20px] text-dim italic mt-4 mb-8 font-serif">
           It&apos;s gone now.
         </p>
-        <BurnButton onClick={resetHome}>Return</BurnButton>
+        <BurnButton onClick={resetHome}>Go to home</BurnButton>
       </Screen>
     </main>
   );

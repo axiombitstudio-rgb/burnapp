@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 interface NavProps {
   mode: "home" | "write" | "witness";
   onModeChange: (mode: "write" | "witness") => void;
@@ -7,8 +9,18 @@ interface NavProps {
 }
 
 export default function Nav({ mode, onModeChange, witnessCount }: NavProps) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 80);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <nav className="flex justify-between items-center px-6 py-4 absolute top-0 left-0 right-0 z-10">
+    <nav
+      className="flex justify-between items-center px-6 py-4 absolute top-0 left-0 right-0 z-10"
+      style={{ opacity: visible ? 1 : 0, transition: "opacity 3s ease" }}
+    >
       <span className="text-[11px] text-muted tracking-[4px] uppercase">
         Burn
       </span>

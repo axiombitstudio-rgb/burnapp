@@ -51,7 +51,7 @@
     --default-transition-timing-function: cubic-bezier(.4, 0, .2, 1);
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
-    --color-bg: #0f0c08;
+    --color-bg: #000;
     --color-text: #d4c4b0;
     --color-muted: #8a7a68;
     --color-dim: #5a4a38;
@@ -330,10 +330,6 @@
     position: relative;
   }
 
-  .static {
-    position: static;
-  }
-
   .inset-0 {
     inset: calc(var(--spacing) * 0);
   }
@@ -456,8 +452,16 @@
     margin-bottom: calc(var(--spacing) * 7);
   }
 
+  .mb-8 {
+    margin-bottom: calc(var(--spacing) * 8);
+  }
+
   .mb-9 {
     margin-bottom: calc(var(--spacing) * 9);
+  }
+
+  .block {
+    display: block;
   }
 
   .flex {
@@ -564,10 +568,6 @@
     max-width: 460px;
   }
 
-  .shrink {
-    flex-shrink: 1;
-  }
-
   .-translate-x-1\/2 {
     --tw-translate-x: calc(calc(1 / 2 * 100%) * -1);
     translate: var(--tw-translate-x) var(--tw-translate-y);
@@ -584,10 +584,6 @@
 
   .cursor-pointer {
     cursor: pointer;
-  }
-
-  .resize {
-    resize: both;
   }
 
   .resize-none {
@@ -835,6 +831,14 @@
     font-size: 42px;
   }
 
+  .text-\[48px\] {
+    font-size: 48px;
+  }
+
+  .text-\[72px\] {
+    font-size: 72px;
+  }
+
   .leading-\[1\.2\] {
     --tw-leading: 1.2;
     line-height: 1.2;
@@ -848,6 +852,11 @@
   .leading-\[2\.2\] {
     --tw-leading: 2.2;
     line-height: 2.2;
+  }
+
+  .leading-none {
+    --tw-leading: 1;
+    line-height: 1;
   }
 
   .leading-relaxed {
@@ -1192,6 +1201,59 @@ textarea:focus {
 
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes flicker1 {
+  0%, 100% {
+    opacity: .55;
+    transform: scaleX(1)scaleY(1);
+  }
+
+  20% {
+    opacity: .8;
+    transform: scaleX(1.04)scaleY(1.06);
+  }
+
+  45% {
+    opacity: .45;
+    transform: scaleX(.96)scaleY(.95);
+  }
+
+  70% {
+    opacity: .72;
+    transform: scaleX(1.02)scaleY(1.03);
+  }
+}
+
+@keyframes flicker2 {
+  0%, 100% {
+    opacity: .4;
+    transform: scaleX(1)translateY(0);
+  }
+
+  30% {
+    opacity: .65;
+    transform: scaleX(.93)translateY(-6px);
+  }
+
+  60% {
+    opacity: .35;
+    transform: scaleX(1.08)translateY(3px);
+  }
+}
+
+@keyframes flicker3 {
+  0%, 100% {
+    opacity: .5;
+  }
+
+  35% {
+    opacity: .28;
+  }
+
+  65% {
+    opacity: .68;
   }
 }
 

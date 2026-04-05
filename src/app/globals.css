@@ -34,7 +34,7 @@
 }
 
 @theme {
-  --color-bg: #0f0c08;
+  --color-bg: #000000;
   --color-bg2: #1e1814;
   --color-bg3: #2a221a;
   --color-text: #d4c4b0;
@@ -52,7 +52,7 @@
 
 html,
 body {
-  background: var(--color-bg);
+  background: #000000;
   color: var(--color-text);
   font-family: var(--font-serif);
   -webkit-font-smoothing: antialiased;
@@ -137,6 +137,23 @@ textarea:focus {
   100% {
     opacity: 0;
   }
+}
+
+@keyframes flicker1 {
+  0%, 100% { opacity: 0.55; transform: scaleX(1)    scaleY(1); }
+  20%       { opacity: 0.80; transform: scaleX(1.04) scaleY(1.06); }
+  45%       { opacity: 0.45; transform: scaleX(0.96) scaleY(0.95); }
+  70%       { opacity: 0.72; transform: scaleX(1.02) scaleY(1.03); }
+}
+@keyframes flicker2 {
+  0%, 100% { opacity: 0.40; transform: scaleX(1)    translateY(0px); }
+  30%       { opacity: 0.65; transform: scaleX(0.93) translateY(-6px); }
+  60%       { opacity: 0.35; transform: scaleX(1.08) translateY(3px); }
+}
+@keyframes flicker3 {
+  0%, 100% { opacity: 0.50; }
+  35%       { opacity: 0.28; }
+  65%       { opacity: 0.68; }
 }
 
 .animate-fadeUp {
